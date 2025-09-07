@@ -1,0 +1,1 @@
+# ffxi-linkshell-manager
