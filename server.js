@@ -510,7 +510,7 @@ app.get('/api/points/transactions', async (req, res) => {
             params.push(user_id);
         }
         
-        query += ' ORDER BY pt.created_at DESC LIMIT  + (params.length + 1);
+        query += ' ORDER BY pt.created_at DESC LIMIT $' + (params.length + 1);
         params.push(limit);
         
         const result = await pool.query(query, params);
