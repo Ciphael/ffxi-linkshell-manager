@@ -7,11 +7,26 @@ require('dotenv').config();
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Middleware
-app.use(helmet());
+// FIXED CORS Configuration
 app.use(cors({
-    origin: '*', // Allow all origins for now, restrict later
-    credentials: true
+    origin: [
+        'https://ffxi-linkshell-manager-frontend.vercel.app',
+        'http://localhost:3000',
+        'http://localhost:5173',
+        'http://127.0.0.1:5500',
+        // Add any other origins you need
+    ],
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization']
+}));
+
+// Handle preflight requests
+app.options('*', cors());
+
+// Middleware
+app.use(helmet({
+    crossOriginResourcePolicy: { policy: "cross-origin" }
 }));
 app.use(express.json());
 
