@@ -338,7 +338,7 @@ app.get('/api/events/upcoming', async (req, res) => {
             `SELECT e.*, 
                     u.character_name as raid_leader_name,
                     COUNT(DISTINCT ep.user_id) as registered_count,
-                    array_agg(DISTINCT et.mob_name) as targets
+                    array_agg(DISTINCT et.mob_name) FILTER (WHERE et.mob_name IS NOT NULL) as targets
              FROM events e
              LEFT JOIN users u ON e.raid_leader = u.id
              LEFT JOIN event_participants ep ON e.id = ep.event_id
@@ -348,10 +348,10 @@ app.get('/api/events/upcoming', async (req, res) => {
              ORDER BY e.event_date`
         );
         
-        res.json(result.rows);
+        res.json(result.rows || []);
     } catch (error) {
         console.error('Error fetching events:', error);
-        res.status(500).json({ error: 'Failed to fetch events' });
+        res.status(500).json({ error: 'Failed to fetch events', details: error.message });
     }
 });
 
