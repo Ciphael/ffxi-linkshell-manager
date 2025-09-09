@@ -394,15 +394,72 @@ app.post('/api/events/:eventId/attendance', async (req, res) => {
 });
 
 // Process event completion and award points
+// Process event completion and award points
 app.post('/api/events/:eventId/complete', async (req, res) => {
     try {
         const { eventId } = req.params;
         
-        // Call the stored procedure to process attendance points
-        await pool.query('SELECT process_event_attendance($1)', [eventId]);
+        await pool.query('BEGIN');
         
-        res.json({ success: true, message: 'Event completed and points awarded' });
+        // Get event details
+        const eventResult = await pool.query(
+            'SELECT * FROM events WHERE id = $1',
+            [eventId]
+        );
+        const event = eventResult.rows[0];
+        
+        // Get all attended participants
+        const participantsResult = await pool.query(
+            'SELECT user_id FROM event_participants WHERE event_id = $1 AND attended = true',
+            [eventId]
+        );
+        
+        // Get category ID
+        const catResult = await pool.query(
+            'SELECT id FROM point_categories WHERE category_name = $1',
+            [event.event_type]
+        );
+        
+        if (catResult.rows[0]) {
+            const categoryId = catResult.rows[0].id;
+            
+            // Award 1 point to each attended participant
+            for (const participant of participantsResult.rows) {
+                // Add point transaction
+                await pool.query(
+                    `INSERT INTO point_transactions (
+                        user_id, category_id, points_change, event_id, description
+                    ) VALUES ($1, $2, $3, $4, $5)`,
+                    [participant.user_id, categoryId, 1, eventId, 'Event attendance']
+                );
+                
+                // Update or insert user points
+                await pool.query(
+                    `INSERT INTO user_points (user_id, category_id, current_points, lifetime_earned)
+                     VALUES ($1, $2, 1, 1)
+                     ON CONFLICT (user_id, category_id)
+                     DO UPDATE SET 
+                        current_points = user_points.current_points + 1,
+                        lifetime_earned = user_points.lifetime_earned + 1`,
+                    [participant.user_id, categoryId]
+                );
+            }
+        }
+        
+        // Mark event as completed
+        await pool.query(
+            'UPDATE events SET status = $2 WHERE id = $1',
+            [eventId, 'completed']
+        );
+        
+        await pool.query('COMMIT');
+        res.json({ 
+            success: true, 
+            message: `Event completed and ${participantsResult.rows.length} participants awarded 1 point each` 
+        });
+        
     } catch (error) {
+        await pool.query('ROLLBACK');
         console.error('Error completing event:', error);
         res.status(500).json({ error: 'Failed to complete event' });
     }
