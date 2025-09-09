@@ -50,31 +50,6 @@ pool.connect((err, client, release) => {
 
 // ============ API ROUTES ============
 
-// Get single event details
-app.get('/api/events/:eventId', async (req, res) => {
-    try {
-        const { eventId } = req.params;
-        
-        const result = await pool.query(
-            `SELECT e.*, 
-                    u.character_name as raid_leader_name
-             FROM events e
-             LEFT JOIN users u ON e.raid_leader = u.id
-             WHERE e.id = $1`,
-            [eventId]
-        );
-        
-        if (result.rows.length === 0) {
-            return res.status(404).json({ error: 'Event not found' });
-        }
-        
-        res.json(result.rows[0]);
-    } catch (error) {
-        console.error('Error fetching event:', error);
-        res.status(500).json({ error: 'Failed to fetch event' });
-    }
-});
-
 // Get mobs for an event based on zone
 app.get('/api/events/:eventId/zone-mobs', async (req, res) => {
     try {
@@ -505,6 +480,78 @@ app.post('/api/events/:eventId/drops', async (req, res) => {
     }
 });
 
+// Get event history (other specific route)
+app.get('/api/events/history', async (req, res) => {
+    try {
+        const { limit = 20 } = req.query;
+        
+        const result = await pool.query(
+            `SELECT e.*,
+                    u.character_name as raid_leader_name,
+                    COUNT(DISTINCT ep.user_id) as total_participants,
+                    COUNT(DISTINCT ed.id) as total_drops,
+                    SUM(ed.winning_bid) as total_points_spent
+             FROM events e
+             LEFT JOIN users u ON e.raid_leader = u.id
+             LEFT JOIN event_participants ep ON e.id = ep.event_id AND ep.attended = true
+             LEFT JOIN event_drops ed ON e.id = ed.event_id AND ed.won_by IS NOT NULL
+             WHERE e.status = 'completed'
+             GROUP BY e.id, u.character_name
+             ORDER BY e.event_date DESC
+             LIMIT $1`,
+            [limit]
+        );
+        
+        res.json(result.rows);
+    } catch (error) {
+        console.error('Error fetching event history:', error);
+        res.status(500).json({ error: 'Failed to fetch event history' });
+    }
+});
+
+// Get potential drops for an event type (from mob_droplist)
+app.get('/api/events/potential-drops/:eventType', async (req, res) => {
+    try {
+        const { eventType } = req.params;
+        
+        // Get mobs from zones matching this event type
+        const mobsResult = await pool.query(
+            `SELECT m.dropId 
+             FROM mobs m
+             JOIN zones z ON m.zone_id = z.id
+             WHERE UPPER(z.zone_category) = UPPER($1)`,
+            [eventType]
+        );
+        
+        if (mobsResult.rows.length === 0) {
+            return res.json([]);
+        }
+        
+        const dropIds = mobsResult.rows.map(r => r.dropid);
+        
+        // Get all potential drops for these mobs
+        const query = `
+            SELECT DISTINCT 
+                md.itemId as item_id,
+                COALESCE(ie.name, iw.name, ib.name, 'Unknown Item') as item_name,
+                md.itemRate as drop_rate
+            FROM mob_droplist md
+            LEFT JOIN item_equipment ie ON md.itemId = ie.itemid
+            LEFT JOIN item_weapon iw ON md.itemId = iw.itemid
+            LEFT JOIN item_basic ib ON md.itemId = ib.itemid
+            WHERE md.dropId = ANY($1::int[])
+            ORDER BY md.itemRate DESC
+            LIMIT 100
+        `;
+        
+        const result = await pool.query(query, [dropIds]);
+        res.json(result.rows);
+    } catch (error) {
+        console.error('Error fetching potential drops:', error);
+        res.status(500).json({ error: 'Failed to fetch potential drops' });
+    }
+});
+
 // Get drops for event
 app.get('/api/events/:eventId/drops', async (req, res) => {
     try {
@@ -523,6 +570,31 @@ app.get('/api/events/:eventId/drops', async (req, res) => {
     } catch (error) {
         console.error('Error fetching drops:', error);
         res.status(500).json({ error: 'Failed to fetch drops' });
+    }
+});
+
+// Get single event details
+app.get('/api/events/:eventId', async (req, res) => {
+    try {
+        const { eventId } = req.params;
+        
+        const result = await pool.query(
+            `SELECT e.*, 
+                    u.character_name as raid_leader_name
+             FROM events e
+             LEFT JOIN users u ON e.raid_leader = u.id
+             WHERE e.id = $1`,
+            [eventId]
+        );
+        
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: 'Event not found' });
+        }
+        
+        res.json(result.rows[0]);
+    } catch (error) {
+        console.error('Error fetching event:', error);
+        res.status(500).json({ error: 'Failed to fetch event' });
     }
 });
 
