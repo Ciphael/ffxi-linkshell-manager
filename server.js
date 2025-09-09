@@ -479,9 +479,6 @@ app.post('/api/events/:eventId/complete', async (req, res) => {
 
 // ============ DROP MANAGEMENT ============
 
-// Add drop to event (enhanced version)
-// Add drop to event
-// Update the add drop endpoint (around line 340)
 // Add drop to event (in server.js)
 app.post('/api/events/:eventId/drops', async (req, res) => {
     try {
@@ -491,25 +488,71 @@ app.post('/api/events/:eventId/drops', async (req, res) => {
             item_name, 
             dropped_from, 
             won_by, 
-            points_used,
+            winning_bid,
             external_buyer,
             sell_value
         } = req.body;
         
+        console.log('Received drop data:', req.body);
+        
+        await pool.query('BEGIN');
+        
+        // Insert the drop
         const result = await pool.query(
             `INSERT INTO event_drops (
                 event_id, item_id, item_name, dropped_from, 
-                won_by, winning_bid, external_buyer, sell_value, distributed_at
+                won_by, winning_bid, distributed_at,
+                external_buyer, sell_value
             ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
             RETURNING *`,
             [eventId, item_id || 0, item_name, dropped_from, 
-             won_by || null, points_used || 0, 
-             external_buyer || null, sell_value || null,
-             (won_by || external_buyer) ? new Date() : null]
+             won_by || null, winning_bid || 0, won_by ? new Date() : null,
+             external_buyer || null, sell_value || null]
         );
         
+        // If won by a player and points were used, deduct them
+        if (won_by && winning_bid > 0) {
+            // Get event type for category
+            const eventResult = await pool.query(
+                'SELECT event_type FROM events WHERE id = $1',
+                [eventId]
+            );
+            const eventType = eventResult.rows[0].event_type;
+            
+            // Get category ID
+            const catResult = await pool.query(
+                'SELECT id FROM point_categories WHERE category_name = $1',
+                [eventType]
+            );
+            
+            if (catResult.rows[0]) {
+                const categoryId = catResult.rows[0].id;
+                
+                // Deduct points from user
+                await pool.query(
+                    `UPDATE user_points 
+                     SET current_points = current_points - $3,
+                         lifetime_spent = lifetime_spent + $3
+                     WHERE user_id = $1 AND category_id = $2`,
+                    [won_by, categoryId, winning_bid]
+                );
+                
+                // Log the transaction
+                await pool.query(
+                    `INSERT INTO point_transactions (
+                        user_id, category_id, points_change, event_id, drop_id, description
+                    ) VALUES ($1, $2, $3, $4, $5, $6)`,
+                    [won_by, categoryId, -winning_bid, eventId, result.rows[0].id, 
+                     `Won ${item_name} for ${winning_bid} points`]
+                );
+            }
+        }
+        
+        await pool.query('COMMIT');
         res.json({ success: true, drop: result.rows[0] });
+        
     } catch (error) {
+        await pool.query('ROLLBACK');
         console.error('Error adding drop:', error);
         res.status(500).json({ error: error.message });
     }
