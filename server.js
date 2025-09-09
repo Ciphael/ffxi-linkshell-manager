@@ -412,6 +412,7 @@ app.post('/api/events/:eventId/complete', async (req, res) => {
 
 // Add drop to event (enhanced version)
 // Add drop to event
+// Update the add drop endpoint (around line 340)
 app.post('/api/events/:eventId/drops', async (req, res) => {
     try {
         const { eventId } = req.params;
@@ -421,8 +422,8 @@ app.post('/api/events/:eventId/drops', async (req, res) => {
             `INSERT INTO event_drops (event_id, item_id, item_name, dropped_from, minimum_bid, won_by, winning_bid, distributed_at)
              VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
              RETURNING *`,
-            [eventId, item_id || null, item_name, dropped_from, minimum_bid || 5, 
-             won_by || null, winning_bid || null, won_by ? new Date() : null]
+            [eventId, item_id || 0, item_name, dropped_from, minimum_bid || 5, 
+             won_by || null, winning_bid || 0, won_by ? new Date() : null]  // Changed to 0 instead of null
         );
         
         res.json({ success: true, drop: result.rows[0] });
