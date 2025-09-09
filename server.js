@@ -413,17 +413,30 @@ app.post('/api/events/:eventId/complete', async (req, res) => {
 // Add drop to event (enhanced version)
 // Add drop to event
 // Update the add drop endpoint (around line 340)
+// Add drop to event (in server.js)
 app.post('/api/events/:eventId/drops', async (req, res) => {
     try {
         const { eventId } = req.params;
-        const { item_id, item_name, dropped_from, minimum_bid, won_by, winning_bid } = req.body;
+        const { 
+            item_id, 
+            item_name, 
+            dropped_from, 
+            won_by, 
+            points_used,
+            external_buyer,
+            sell_value
+        } = req.body;
         
         const result = await pool.query(
-            `INSERT INTO event_drops (event_id, item_id, item_name, dropped_from, minimum_bid, won_by, winning_bid, distributed_at)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-             RETURNING *`,
-            [eventId, item_id || 0, item_name, dropped_from, minimum_bid || 5, 
-             won_by || null, winning_bid || 0, won_by ? new Date() : null]  // Changed to 0 instead of null
+            `INSERT INTO event_drops (
+                event_id, item_id, item_name, dropped_from, 
+                won_by, winning_bid, external_buyer, sell_value, distributed_at
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+            RETURNING *`,
+            [eventId, item_id || 0, item_name, dropped_from, 
+             won_by || null, points_used || 0, 
+             external_buyer || null, sell_value || null,
+             (won_by || external_buyer) ? new Date() : null]
         );
         
         res.json({ success: true, drop: result.rows[0] });
