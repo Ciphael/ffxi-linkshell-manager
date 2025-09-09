@@ -50,7 +50,73 @@ pool.connect((err, client, release) => {
 
 // ============ API ROUTES ============
 
-// Add these endpoints to your existing server.js file
+// Get mobs for an event based on zone
+app.get('/api/events/:eventId/zone-mobs', async (req, res) => {
+    try {
+        const { eventId } = req.params;
+        
+        // Get event type to determine zone category
+        const eventResult = await pool.query(
+            'SELECT event_type FROM events WHERE id = $1',
+            [eventId]
+        );
+        
+        const eventType = eventResult.rows[0]?.event_type;
+        
+        // Get mobs from zones matching this event type
+        const query = `
+            SELECT m.dropId, m.mob_name, z.zone_name, m.mob_type, m.mob_level
+            FROM mobs m
+            JOIN zones z ON m.zone_id = z.id
+            WHERE z.zone_category = $1
+            ORDER BY z.zone_name, m.mob_name
+        `;
+        
+        const result = await pool.query(query, [eventType || 'SKY']);
+        res.json(result.rows);
+    } catch (error) {
+        console.error('Error fetching zone mobs:', error);
+        res.status(500).json({ error: 'Failed to fetch mobs' });
+    }
+});
+
+// Get drops for a specific mob using dropId
+app.get('/api/mobs/:dropId/drops', async (req, res) => {
+    try {
+        const { dropId } = req.params;
+        
+        const query = `
+            SELECT 
+                md.itemId,
+                COALESCE(ie.name, iw.name, ib.name, 'Unknown Item') as item_name,
+                md.itemRate,
+                md.dropType,
+                md.groupId,
+                md.groupRate
+            FROM mob_droplist md
+            LEFT JOIN item_equipment ie ON md.itemId = ie.itemid
+            LEFT JOIN item_weapon iw ON md.itemId = iw.itemid
+            LEFT JOIN item_basic ib ON md.itemId = ib.itemid
+            WHERE md.dropId = $1
+            ORDER BY md.dropType, md.groupId, md.itemRate DESC
+        `;
+        
+        const result = await pool.query(query, [dropId]);
+        
+        // Format the drop rates for display
+        const formattedDrops = result.rows.map(drop => ({
+            ...drop,
+            displayRate: drop.itemrate > 100 ? 
+                `${(drop.itemrate / 10).toFixed(1)}%` : 
+                `${drop.itemrate}%`
+        }));
+        
+        res.json(formattedDrops);
+    } catch (error) {
+        console.error('Error fetching mob drops:', error);
+        res.status(500).json({ error: 'Failed to fetch drops' });
+    }
+});
 
 // ============ USER MANAGEMENT ============
 
