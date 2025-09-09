@@ -80,6 +80,74 @@ app.get('/api/events/:eventId/zone-mobs', async (req, res) => {
     }
 });
 
+// Update existing drop with point adjustment
+app.put('/api/drops/:dropId', async (req, res) => {
+    try {
+        const { dropId } = req.params;
+        const { winning_bid } = req.body;
+        
+        await pool.query('BEGIN');
+        
+        // Get current drop info
+        const dropResult = await pool.query(
+            `SELECT ed.*, e.event_type 
+             FROM event_drops ed
+             JOIN events e ON ed.event_id = e.id
+             WHERE ed.id = $1`,
+            [dropId]
+        );
+        
+        const drop = dropResult.rows[0];
+        const oldPoints = drop.winning_bid || 0;
+        const newPoints = Math.abs(winning_bid || 0); // Ensure positive
+        const pointDiff = oldPoints - newPoints;
+        
+        if (pointDiff !== 0 && drop.won_by) {
+            // Get category ID
+            const catResult = await pool.query(
+                'SELECT id FROM point_categories WHERE category_name = $1',
+                [drop.event_type]
+            );
+            
+            if (catResult.rows[0]) {
+                // Refund/charge the difference
+                await pool.query(
+                    `UPDATE user_points 
+                     SET current_points = current_points + $3,
+                         lifetime_spent = lifetime_spent - $3
+                     WHERE user_id = $1 AND category_id = $2`,
+                    [drop.won_by, catResult.rows[0].id, pointDiff]
+                );
+                
+                // Log the adjustment
+                await pool.query(
+                    `INSERT INTO point_transactions (
+                        user_id, category_id, points_change, 
+                        event_id, drop_id, description
+                    ) VALUES ($1, $2, $3, $4, $5, $6)`,
+                    [drop.won_by, catResult.rows[0].id, pointDiff, 
+                     drop.event_id, dropId, 
+                     `Point adjustment for ${drop.item_name}: ${oldPoints} → ${newPoints}`]
+                );
+            }
+        }
+        
+        // Update the drop
+        await pool.query(
+            'UPDATE event_drops SET winning_bid = $2 WHERE id = $1',
+            [dropId, newPoints]
+        );
+        
+        await pool.query('COMMIT');
+        res.json({ success: true, oldPoints, newPoints, pointDiff });
+        
+    } catch (error) {
+        await pool.query('ROLLBACK');
+        console.error('Error updating drop:', error);
+        res.status(500).json({ error: 'Failed to update drop' });
+    }
+});
+
 // Get drops for a specific mob using dropId
 app.get('/api/mobs/:dropId/drops', async (req, res) => {
     try {
