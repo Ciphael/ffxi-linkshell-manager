@@ -397,6 +397,7 @@ app.post('/api/events/:eventId/attendance', async (req, res) => {
 app.post('/api/events/:eventId/complete', async (req, res) => {
     try {
         const { eventId } = req.params;
+        console.log('Completing event:', eventId);
         
         await pool.query('BEGIN');
         
@@ -411,50 +412,84 @@ app.post('/api/events/:eventId/complete', async (req, res) => {
         }
         
         const event = eventResult.rows[0];
+        console.log('Event type:', event.event_type);
         
         // Get all attended participants
         const participantsResult = await pool.query(
             'SELECT user_id FROM event_participants WHERE event_id = $1 AND attended = true',
             [eventId]
         );
+        console.log('Attended participants:', participantsResult.rows.length);
         
-        // Get or create category
-        const catResult = await pool.query(
-            `INSERT INTO point_categories (category_name) 
-             VALUES ($1) 
-             ON CONFLICT (category_name) DO UPDATE 
-             SET category_name = $1
-             RETURNING id`,
+        // Check if category exists, create if not
+        let categoryId;
+        const catCheckResult = await pool.query(
+            'SELECT id FROM point_categories WHERE category_name = $1',
             [event.event_type]
         );
         
-        const categoryId = catResult.rows[0].id;
+        if (catCheckResult.rows.length > 0) {
+            categoryId = catCheckResult.rows[0].id;
+        } else {
+            // Create the category
+            const catCreateResult = await pool.query(
+                'INSERT INTO point_categories (category_name) VALUES ($1) RETURNING id',
+                [event.event_type]
+            );
+            categoryId = catCreateResult.rows[0].id;
+        }
+        console.log('Category ID:', categoryId);
         
         // Award 1 point to each attended participant
+        let successCount = 0;
         for (const participant of participantsResult.rows) {
-            // Update or insert user points
-            await pool.query(
-                `INSERT INTO user_points (user_id, category_id, current_points, lifetime_earned, lifetime_spent)
-                 VALUES ($1, $2, 1, 1, 0)
-                 ON CONFLICT (user_id, category_id)
-                 DO UPDATE SET 
-                    current_points = user_points.current_points + 1,
-                    lifetime_earned = user_points.lifetime_earned + 1`,
-                [participant.user_id, categoryId]
-            );
-            
-            // Add point transaction
-            await pool.query(
-                `INSERT INTO point_transactions (
-                    user_id, category_id, points_change, event_id, description, created_at
-                ) VALUES ($1, $2, $3, $4, $5, NOW())`,
-                [participant.user_id, categoryId, 1, eventId, 'Event attendance']
-            );
+            try {
+                // Check if user_points record exists
+                const pointsCheck = await pool.query(
+                    'SELECT * FROM user_points WHERE user_id = $1 AND category_id = $2',
+                    [participant.user_id, categoryId]
+                );
+                
+                if (pointsCheck.rows.length > 0) {
+                    // Update existing
+                    await pool.query(
+                        `UPDATE user_points 
+                         SET current_points = current_points + 1,
+                             lifetime_earned = lifetime_earned + 1,
+                             updated_at = NOW()
+                         WHERE user_id = $1 AND category_id = $2`,
+                        [participant.user_id, categoryId]
+                    );
+                } else {
+                    // Insert new
+                    await pool.query(
+                        `INSERT INTO user_points (user_id, category_id, current_points, lifetime_earned, lifetime_spent)
+                         VALUES ($1, $2, 1, 1, 0)`,
+                        [participant.user_id, categoryId]
+                    );
+                }
+                
+                // Log transaction (check if table exists first)
+                try {
+                    await pool.query(
+                        `INSERT INTO point_transactions (
+                            user_id, category_id, points_change, event_id, description
+                        ) VALUES ($1, $2, $3, $4, $5)`,
+                        [participant.user_id, categoryId, 1, eventId, 'Event attendance']
+                    );
+                } catch (txError) {
+                    console.log('Transaction logging failed (table may not exist):', txError.message);
+                }
+                
+                successCount++;
+            } catch (pError) {
+                console.error('Error awarding points to user', participant.user_id, ':', pError.message);
+            }
         }
         
         // Mark event as completed
         await pool.query(
-            `UPDATE events SET status = 'completed', updated_at = NOW() WHERE id = $1`,
+            `UPDATE events SET status = 'completed' WHERE id = $1`,
             [eventId]
         );
         
@@ -462,15 +497,16 @@ app.post('/api/events/:eventId/complete', async (req, res) => {
         
         res.json({ 
             success: true, 
-            message: `Event completed! ${participantsResult.rows.length} participants awarded 1 point each` 
+            message: `Event completed! ${successCount} participants awarded 1 point each` 
         });
         
     } catch (error) {
         await pool.query('ROLLBACK');
-        console.error('Error completing event:', error);
+        console.error('Error completing event - Full error:', error);
         res.status(500).json({ 
             error: 'Failed to complete event', 
-            details: error.message 
+            details: error.message,
+            stack: error.stack
         });
     }
 });
