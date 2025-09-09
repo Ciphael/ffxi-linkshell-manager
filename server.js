@@ -446,6 +446,30 @@ app.post('/api/events/:eventId/drops', async (req, res) => {
     }
 });
 
+// Get drops for event
+app.get('/api/events/:eventId/drops', async (req, res) => {
+    try {
+        const { eventId } = req.params;
+        
+        const result = await pool.query(
+            `SELECT ed.*, 
+                    u.character_name as won_by_character,
+                    ed.external_buyer,
+                    ed.sell_value
+             FROM event_drops ed
+             LEFT JOIN users u ON ed.won_by = u.id
+             WHERE ed.event_id = $1
+             ORDER BY ed.dropped_at DESC`,
+            [eventId]
+        );
+        
+        res.json(result.rows);
+    } catch (error) {
+        console.error('Error fetching drops:', error);
+        res.status(500).json({ error: 'Failed to fetch drops' });
+    }
+});
+
 // Get event history (other specific route)
 app.get('/api/events/history', async (req, res) => {
     try {
@@ -515,27 +539,6 @@ app.get('/api/events/potential-drops/:eventType', async (req, res) => {
     } catch (error) {
         console.error('Error fetching potential drops:', error);
         res.status(500).json({ error: 'Failed to fetch potential drops' });
-    }
-});
-
-// Get drops for event
-app.get('/api/events/:eventId/drops', async (req, res) => {
-    try {
-        const { eventId } = req.params;
-        
-        const result = await pool.query(
-            `SELECT ed.*, u.character_name as won_by_character
-             FROM event_drops ed
-             LEFT JOIN users u ON ed.won_by = u.id
-             WHERE ed.event_id = $1
-             ORDER BY ed.dropped_at DESC`,
-            [eventId]
-        );
-        
-        res.json(result.rows);
-    } catch (error) {
-        console.error('Error fetching drops:', error);
-        res.status(500).json({ error: 'Failed to fetch drops' });
     }
 });
 
