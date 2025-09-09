@@ -63,12 +63,12 @@ app.get('/api/events/:eventId/zone-mobs', async (req, res) => {
         
         const eventType = eventResult.rows[0]?.event_type;
         
-        // Get mobs from zones matching this event type
+        // Get mobs from zones matching this event type - uppercase it for matching
         const query = `
             SELECT m.dropId, m.mob_name, z.zone_name, m.mob_type, m.mob_level
             FROM mobs m
             JOIN zones z ON m.zone_id = z.id
-            WHERE z.zone_category = $1
+            WHERE z.zone_category = UPPER($1)
             ORDER BY z.zone_name, m.mob_name
         `;
         
