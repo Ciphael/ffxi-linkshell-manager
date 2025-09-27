@@ -7,14 +7,13 @@ require('dotenv').config();
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// FIXED CORS Configuration
+// CORS Configuration
 app.use(cors({
     origin: [
         'https://ffxi-linkshell-manager-frontend.vercel.app',
         'http://localhost:3000',
         'http://localhost:5173',
         'http://127.0.0.1:5500',
-        // Add any other origins you need
     ],
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
@@ -50,208 +49,38 @@ pool.connect((err, client, release) => {
 
 // ============ API ROUTES ============
 
-// Get mobs for an event based on zone
-app.get('/api/events/:eventId/zone-mobs', async (req, res) => {
-    try {
-        const { eventId } = req.params;
-        
-        // Get event type to determine zone category
-        const eventResult = await pool.query(
-            'SELECT event_type FROM events WHERE id = $1',
-            [eventId]
-        );
-        
-        const eventType = eventResult.rows[0]?.event_type;
-        
-        // Get mobs from zones matching this event type - uppercase it for matching
-        const query = `
-            SELECT m.dropId, m.mob_name, z.zone_name, m.mob_type, m.mob_level
-            FROM mobs m
-            JOIN zones z ON m.zone_id = z.id
-            WHERE z.zone_category = UPPER($1)
-            ORDER BY z.zone_name, m.mob_name
-        `;
-        
-        const result = await pool.query(query, [eventType || 'SKY']);
-        res.json(result.rows);
-    } catch (error) {
-        console.error('Error fetching zone mobs:', error);
-        res.status(500).json({ error: 'Failed to fetch mobs' });
-    }
-});
-
-// Update existing drop with point adjustment
-app.put('/api/drops/:dropId', async (req, res) => {
-    try {
-        const { dropId } = req.params;
-        const { winning_bid } = req.body;
-        
-        await pool.query('BEGIN');
-        
-        // Get current drop info
-        const dropResult = await pool.query(
-            `SELECT ed.*, e.event_type 
-             FROM event_drops ed
-             JOIN events e ON ed.event_id = e.id
-             WHERE ed.id = $1`,
-            [dropId]
-        );
-        
-        const drop = dropResult.rows[0];
-        const oldPoints = drop.winning_bid || 0;
-        const newPoints = Math.abs(winning_bid || 0); // Ensure positive
-        const pointDiff = oldPoints - newPoints;
-        
-        if (pointDiff !== 0 && drop.won_by) {
-            // Get category ID
-            const catResult = await pool.query(
-                'SELECT id FROM point_categories WHERE category_name = $1',
-                [drop.event_type]
-            );
-            
-            if (catResult.rows[0]) {
-                // Refund/charge the difference
-                await pool.query(
-                    `UPDATE user_points 
-                     SET current_points = current_points + $3,
-                         lifetime_spent = lifetime_spent - $3
-                     WHERE user_id = $1 AND category_id = $2`,
-                    [drop.won_by, catResult.rows[0].id, pointDiff]
-                );
-                
-                // Log the adjustment
-                await pool.query(
-                    `INSERT INTO point_transactions (
-                        user_id, category_id, points_change, 
-                        event_id, drop_id, description
-                    ) VALUES ($1, $2, $3, $4, $5, $6)`,
-                    [drop.won_by, catResult.rows[0].id, pointDiff, 
-                     drop.event_id, dropId, 
-                     `Point adjustment for ${drop.item_name}: ${oldPoints} → ${newPoints}`]
-                );
-            }
+// Root route
+app.get('/', (req, res) => {
+    res.json({ 
+        message: 'FFXI Linkshell API', 
+        endpoints: {
+            test: '/api/test',
+            items: '/api/items',
+            item_details: '/api/items/:id',
+            mods: '/api/mods',
+            weapons: '/api/weapons'
         }
-        
-        // Update the drop
-        await pool.query(
-            'UPDATE event_drops SET winning_bid = $2 WHERE id = $1',
-            [dropId, newPoints]
-        );
-        
-        await pool.query('COMMIT');
-        res.json({ success: true, oldPoints, newPoints, pointDiff });
-        
-    } catch (error) {
-        await pool.query('ROLLBACK');
-        console.error('Error updating drop:', error);
-        res.status(500).json({ error: 'Failed to update drop' });
-    }
+    });
 });
 
-// Get drops for a specific mob using dropId
-app.get('/api/mobs/:dropId/drops', async (req, res) => {
+// Test route
+app.get('/api/test', async (req, res) => {
     try {
-        const { dropId } = req.params;
-        
-        const query = `
-            SELECT 
-                md.itemId,
-                COALESCE(ie.name, iw.name, ib.name, 'Unknown Item') as item_name,
-                md.itemRate,
-                md.dropType,
-                md.groupId,
-                md.groupRate
-            FROM mob_droplist md
-            LEFT JOIN item_equipment ie ON md.itemId = ie.itemid
-            LEFT JOIN item_weapon iw ON md.itemId = iw.itemid
-            LEFT JOIN item_basic ib ON md.itemId = ib.itemid
-            WHERE md.dropId = $1
-            ORDER BY md.dropType, md.groupId, md.itemRate DESC
-        `;
-        
-        const result = await pool.query(query, [dropId]);
-        
-        // Format the drop rates for display
-        const formattedDrops = result.rows.map(drop => ({
-            ...drop,
-            displayRate: drop.itemrate > 100 ? 
-                `${(drop.itemrate / 10).toFixed(1)}%` : 
-                `${drop.itemrate}%`
-        }));
-        
-        res.json(formattedDrops);
+        const result = await pool.query('SELECT NOW()');
+        res.json({ 
+            message: 'API is working!',
+            database: 'Connected',
+            time: result.rows[0].now 
+        });
     } catch (error) {
-        console.error('Error fetching mob drops:', error);
-        res.status(500).json({ error: 'Failed to fetch drops' });
+        res.json({ 
+            message: 'API is working but database connection failed',
+            error: error.message 
+        });
     }
 });
 
-// ============ USER MANAGEMENT ============
-
-// Register new user
-app.post('/api/users/register', async (req, res) => {
-    try {
-        const { character_name, discord_username, email } = req.body;
-        
-        const result = await pool.query(
-            `INSERT INTO users (character_name, discord_username, email, role) 
-             VALUES ($1, $2, $3, 'member') 
-             RETURNING *`,
-            [character_name, discord_username, email]
-        );
-        
-        res.json({ success: true, user: result.rows[0] });
-    } catch (error) {
-        console.error('Error registering user:', error);
-        res.status(500).json({ error: 'Failed to register user' });
-    }
-});
-
-// Get all users
-app.get('/api/users', async (req, res) => {
-    try {
-        const result = await pool.query(
-            `SELECT u.*, 
-                    COALESCE(SUM(up.current_points), 0) as total_points
-             FROM users u
-             LEFT JOIN user_points up ON u.id = up.user_id
-             WHERE u.is_active = true
-             GROUP BY u.id
-             ORDER BY u.character_name`
-        );
-        res.json(result.rows);
-    } catch (error) {
-        console.error('Error fetching users:', error);
-        res.status(500).json({ error: 'Failed to fetch users' });
-    }
-});
-
-// Get user points
-app.get('/api/users/:userId/points', async (req, res) => {
-    try {
-        const { userId } = req.params;
-        
-        const result = await pool.query(
-            `SELECT pc.category_name, 
-                    COALESCE(up.current_points, 0) as current_points,
-                    COALESCE(up.lifetime_earned, 0) as lifetime_earned,
-                    COALESCE(up.lifetime_spent, 0) as lifetime_spent
-             FROM point_categories pc
-             LEFT JOIN user_points up ON pc.id = up.category_id AND up.user_id = $1
-             ORDER BY pc.category_name`,
-            [userId]
-        );
-        
-        res.json(result.rows);
-    } catch (error) {
-        console.error('Error fetching user points:', error);
-        res.status(500).json({ error: 'Failed to fetch user points' });
-    }
-});
-
-// ============ EVENT MANAGEMENT ============
-// ============ BOSS DROP CONFIGURATION ENDPOINTS ============
-// Add these to your server.js
+// ============ BOSS DROP CONFIGURATION ============
 
 // Get boss drop configuration
 app.get('/api/boss/:mobDropId/drop-config', async (req, res) => {
@@ -359,7 +188,7 @@ app.put('/api/bosses/:bossId/status', async (req, res) => {
     }
 });
 
-// Remove boss from event  
+// Remove boss from event
 app.delete('/api/bosses/:bossId', async (req, res) => {
     try {
         const { bossId } = req.params;
@@ -372,39 +201,139 @@ app.delete('/api/bosses/:bossId', async (req, res) => {
         res.status(500).json({ error: 'Failed to remove boss' });
     }
 });
-// Save planned drops for an event
-app.post('/api/events/:eventId/planned-drops', async (req, res) => {
+
+// Get mobs for an event based on zone
+app.get('/api/events/:eventId/zone-mobs', async (req, res) => {
     try {
         const { eventId } = req.params;
-        const { drops } = req.body;
         
-        await pool.query('BEGIN');
+        // Get event type to determine zone category
+        const eventResult = await pool.query(
+            'SELECT event_type FROM events WHERE id = $1',
+            [eventId]
+        );
         
-        // Clear existing planned drops for this event
-        await pool.query('DELETE FROM event_planned_drops WHERE event_id = $1', [eventId]);
+        const eventType = eventResult.rows[0]?.event_type;
         
-        // Insert new planned drops
-        for (const drop of drops) {
-            await pool.query(
-                `INSERT INTO event_planned_drops (
-                    event_id, mob_name, item_id, item_name, quantity,
-                    min_points, allocation_type, assigned_to, external_buyer, sell_price
-                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
-                [eventId, drop.mob_name, drop.item_id, drop.item_name, drop.quantity,
-                 drop.min_points, drop.allocation_type, drop.assigned_to, 
-                 drop.external_buyer, drop.sell_price]
-            );
-        }
+        // Get mobs from zones matching this event type
+        const query = `
+            SELECT m.dropId, m.mob_name, z.zone_name, m.mob_type, m.mob_level
+            FROM mobs m
+            JOIN zones z ON m.zone_id = z.id
+            WHERE z.zone_category = UPPER($1)
+            ORDER BY z.zone_name, m.mob_name
+        `;
         
-        await pool.query('COMMIT');
-        res.json({ success: true });
-        
+        const result = await pool.query(query, [eventType || 'SKY']);
+        res.json(result.rows);
     } catch (error) {
-        await pool.query('ROLLBACK');
-        console.error('Error saving planned drops:', error);
-        res.status(500).json({ error: error.message });
+        console.error('Error fetching zone mobs:', error);
+        res.status(500).json({ error: 'Failed to fetch mobs' });
     }
 });
+
+// Get drops for a specific mob using dropId
+app.get('/api/mobs/:dropId/drops', async (req, res) => {
+    try {
+        const { dropId } = req.params;
+        
+        const query = `
+            SELECT 
+                md.itemId,
+                COALESCE(ie.name, iw.name, ib.name, 'Unknown Item') as item_name,
+                md.itemRate,
+                md.dropType,
+                md.groupId,
+                md.groupRate
+            FROM mob_droplist md
+            LEFT JOIN item_equipment ie ON md.itemId = ie.itemid
+            LEFT JOIN item_weapon iw ON md.itemId = iw.itemid
+            LEFT JOIN item_basic ib ON md.itemId = ib.itemid
+            WHERE md.dropId = $1
+            ORDER BY md.dropType, md.groupId, md.itemRate DESC
+        `;
+        
+        const result = await pool.query(query, [dropId]);
+        
+        // Format the drop rates for display
+        const formattedDrops = result.rows.map(drop => ({
+            ...drop,
+            displayRate: drop.itemrate > 100 ? 
+                `${(drop.itemrate / 10).toFixed(1)}%` : 
+                `${drop.itemrate}%`
+        }));
+        
+        res.json(formattedDrops);
+    } catch (error) {
+        console.error('Error fetching mob drops:', error);
+        res.status(500).json({ error: 'Failed to fetch drops' });
+    }
+});
+
+// ============ USER MANAGEMENT ============
+
+// Register new user
+app.post('/api/users/register', async (req, res) => {
+    try {
+        const { character_name, discord_username, email } = req.body;
+        
+        const result = await pool.query(
+            `INSERT INTO users (character_name, discord_username, email, role) 
+             VALUES ($1, $2, $3, 'member') 
+             RETURNING *`,
+            [character_name, discord_username, email]
+        );
+        
+        res.json({ success: true, user: result.rows[0] });
+    } catch (error) {
+        console.error('Error registering user:', error);
+        res.status(500).json({ error: 'Failed to register user' });
+    }
+});
+
+// Get all users
+app.get('/api/users', async (req, res) => {
+    try {
+        const result = await pool.query(
+            `SELECT u.*, 
+                    COALESCE(SUM(up.current_points), 0) as total_points
+             FROM users u
+             LEFT JOIN user_points up ON u.id = up.user_id
+             WHERE u.is_active = true
+             GROUP BY u.id
+             ORDER BY u.character_name`
+        );
+        res.json(result.rows);
+    } catch (error) {
+        console.error('Error fetching users:', error);
+        res.status(500).json({ error: 'Failed to fetch users' });
+    }
+});
+
+// Get user points
+app.get('/api/users/:userId/points', async (req, res) => {
+    try {
+        const { userId } = req.params;
+        
+        const result = await pool.query(
+            `SELECT pc.category_name, 
+                    COALESCE(up.current_points, 0) as current_points,
+                    COALESCE(up.lifetime_earned, 0) as lifetime_earned,
+                    COALESCE(up.lifetime_spent, 0) as lifetime_spent
+             FROM point_categories pc
+             LEFT JOIN user_points up ON pc.id = up.category_id AND up.user_id = $1
+             ORDER BY pc.category_name`,
+            [userId]
+        );
+        
+        res.json(result.rows);
+    } catch (error) {
+        console.error('Error fetching user points:', error);
+        res.status(500).json({ error: 'Failed to fetch user points' });
+    }
+});
+
+// ============ EVENT MANAGEMENT ============
 
 // Create new event
 app.post('/api/events', async (req, res) => {
@@ -418,11 +347,10 @@ app.post('/api/events', async (req, res) => {
             meeting_location,
             max_participants,
             base_points,
-            targets, // Array of mob names
+            targets,
             created_by
         } = req.body;
         
-        // Start transaction
         await pool.query('BEGIN');
         
         // Create event
@@ -482,6 +410,31 @@ app.get('/api/events/upcoming', async (req, res) => {
     } catch (error) {
         console.error('Error fetching events:', error);
         res.status(500).json({ error: 'Failed to fetch events', details: error.message });
+    }
+});
+
+// Get single event details
+app.get('/api/events/:eventId', async (req, res) => {
+    try {
+        const { eventId } = req.params;
+        
+        const result = await pool.query(
+            `SELECT e.*, 
+                    u.character_name as raid_leader_name
+             FROM events e
+             LEFT JOIN users u ON e.raid_leader = u.id
+             WHERE e.id = $1`,
+            [eventId]
+        );
+        
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: 'Event not found' });
+        }
+        
+        res.json(result.rows[0]);
+    } catch (error) {
+        console.error('Error fetching event:', error);
+        res.status(500).json({ error: 'Failed to fetch event' });
     }
 });
 
@@ -604,7 +557,7 @@ app.post('/api/events/:eventId/complete', async (req, res) => {
                 `INSERT INTO point_transactions (
                     user_id, category_id, points_change, event_id, description
                 ) VALUES ($1, $2, $3, $4, $5)
-                ON CONFLICT DO NOTHING`,  // In case table doesn't exist
+                ON CONFLICT DO NOTHING`,
                 [participant.user_id, categoryId, pointsToAward, eventId, `Event attendance: ${event.event_name}`]
             );
         }
@@ -632,9 +585,38 @@ app.post('/api/events/:eventId/complete', async (req, res) => {
     }
 });
 
+// Get event history
+app.get('/api/events/history', async (req, res) => {
+    try {
+        const { limit = 20 } = req.query;
+        
+        const result = await pool.query(
+            `SELECT e.*,
+                    u.character_name as raid_leader_name,
+                    COUNT(DISTINCT ep.user_id) as total_participants,
+                    COUNT(DISTINCT ed.id) as total_drops,
+                    SUM(ed.winning_bid) as total_points_spent
+             FROM events e
+             LEFT JOIN users u ON e.raid_leader = u.id
+             LEFT JOIN event_participants ep ON e.id = ep.event_id AND ep.attended = true
+             LEFT JOIN event_drops ed ON e.id = ed.event_id AND ed.won_by IS NOT NULL
+             WHERE e.status = 'completed'
+             GROUP BY e.id, u.character_name
+             ORDER BY e.event_date DESC
+             LIMIT $1`,
+            [limit]
+        );
+        
+        res.json(result.rows);
+    } catch (error) {
+        console.error('Error fetching event history:', error);
+        res.status(500).json({ error: 'Failed to fetch event history' });
+    }
+});
+
 // ============ DROP MANAGEMENT ============
 
-// Add drop to event (in server.js)
+// Add drop to event
 app.post('/api/events/:eventId/drops', async (req, res) => {
     try {
         const { eventId } = req.params;
@@ -737,190 +719,17 @@ app.get('/api/events/:eventId/drops', async (req, res) => {
     }
 });
 
-// Get event history (other specific route)
-app.get('/api/events/history', async (req, res) => {
-    try {
-        const { limit = 20 } = req.query;
-        
-        const result = await pool.query(
-            `SELECT e.*,
-                    u.character_name as raid_leader_name,
-                    COUNT(DISTINCT ep.user_id) as total_participants,
-                    COUNT(DISTINCT ed.id) as total_drops,
-                    SUM(ed.winning_bid) as total_points_spent
-             FROM events e
-             LEFT JOIN users u ON e.raid_leader = u.id
-             LEFT JOIN event_participants ep ON e.id = ep.event_id AND ep.attended = true
-             LEFT JOIN event_drops ed ON e.id = ed.event_id AND ed.won_by IS NOT NULL
-             WHERE e.status = 'completed'
-             GROUP BY e.id, u.character_name
-             ORDER BY e.event_date DESC
-             LIMIT $1`,
-            [limit]
-        );
-        
-        res.json(result.rows);
-    } catch (error) {
-        console.error('Error fetching event history:', error);
-        res.status(500).json({ error: 'Failed to fetch event history' });
-    }
-});
-
-// Get potential drops for an event type (from mob_droplist)
-app.get('/api/events/potential-drops/:eventType', async (req, res) => {
-    try {
-        const { eventType } = req.params;
-        
-        // Get mobs from zones matching this event type
-        const mobsResult = await pool.query(
-            `SELECT m.dropId 
-             FROM mobs m
-             JOIN zones z ON m.zone_id = z.id
-             WHERE UPPER(z.zone_category) = UPPER($1)`,
-            [eventType]
-        );
-        
-        if (mobsResult.rows.length === 0) {
-            return res.json([]);
-        }
-        
-        const dropIds = mobsResult.rows.map(r => r.dropid);
-        
-        // Get all potential drops for these mobs
-        const query = `
-            SELECT DISTINCT 
-                md.itemId as item_id,
-                COALESCE(ie.name, iw.name, ib.name, 'Unknown Item') as item_name,
-                md.itemRate as drop_rate
-            FROM mob_droplist md
-            LEFT JOIN item_equipment ie ON md.itemId = ie.itemid
-            LEFT JOIN item_weapon iw ON md.itemId = iw.itemid
-            LEFT JOIN item_basic ib ON md.itemId = ib.itemid
-            WHERE md.dropId = ANY($1::int[])
-            ORDER BY md.itemRate DESC
-            LIMIT 100
-        `;
-        
-        const result = await pool.query(query, [dropIds]);
-        res.json(result.rows);
-    } catch (error) {
-        console.error('Error fetching potential drops:', error);
-        res.status(500).json({ error: 'Failed to fetch potential drops' });
-    }
-});
-
-// Get single event details
-app.get('/api/events/:eventId', async (req, res) => {
-    try {
-        const { eventId } = req.params;
-        
-        const result = await pool.query(
-            `SELECT e.*, 
-                    u.character_name as raid_leader_name
-             FROM events e
-             LEFT JOIN users u ON e.raid_leader = u.id
-             WHERE e.id = $1`,
-            [eventId]
-        );
-        
-        if (result.rows.length === 0) {
-            return res.status(404).json({ error: 'Event not found' });
-        }
-        
-        res.json(result.rows[0]);
-    } catch (error) {
-        console.error('Error fetching event:', error);
-        res.status(500).json({ error: 'Failed to fetch event' });
-    }
-});
-
-// Get sold items report
-app.get('/api/reports/sold-items', async (req, res) => {
-    try {
-        const { limit = 100 } = req.query;
-        
-        const query = `
-            SELECT 
-                ed.item_name,
-                ed.dropped_from,
-                ed.external_buyer,
-                ed.sell_value,
-                ed.distributed_at,
-                e.event_name,
-                e.event_type
-            FROM event_drops ed
-            JOIN events e ON ed.event_id = e.id
-            WHERE ed.external_buyer IS NOT NULL
-            ORDER BY ed.distributed_at DESC
-            LIMIT $1
-        `;
-        
-        const result = await pool.query(query, [limit]);
-        res.json(result.rows);
-    } catch (error) {
-        console.error('Error fetching sold items:', error);
-        res.status(500).json({ error: 'Failed to fetch sold items' });
-    }
-});
-
-// Place bid on item
-app.post('/api/drops/:dropId/bid', async (req, res) => {
+// Update existing drop with point adjustment
+app.put('/api/drops/:dropId', async (req, res) => {
     try {
         const { dropId } = req.params;
-        const { user_id, bid_amount } = req.body;
-        
-        // Check if user has enough points
-        const dropResult = await pool.query(
-            `SELECT e.event_type FROM event_drops ed
-             JOIN events e ON ed.event_id = e.id
-             WHERE ed.id = $1`,
-            [dropId]
-        );
-        
-        const eventType = dropResult.rows[0].event_type;
-        
-        const pointsResult = await pool.query(
-            `SELECT up.current_points 
-             FROM user_points up
-             JOIN point_categories pc ON up.category_id = pc.id
-             WHERE up.user_id = $1 AND pc.category_name = $2`,
-            [user_id, eventType]
-        );
-        
-        const currentPoints = pointsResult.rows[0]?.current_points || 0;
-        
-        if (currentPoints < bid_amount) {
-            return res.status(400).json({ error: 'Insufficient points' });
-        }
-        
-        // Place bid
-        const result = await pool.query(
-            `INSERT INTO item_bids (drop_id, user_id, bid_amount)
-             VALUES ($1, $2, $3)
-             ON CONFLICT (drop_id, user_id)
-             DO UPDATE SET bid_amount = $3, bid_time = NOW()
-             RETURNING *`,
-            [dropId, user_id, bid_amount]
-        );
-        
-        res.json({ success: true, bid: result.rows[0] });
-    } catch (error) {
-        console.error('Error placing bid:', error);
-        res.status(500).json({ error: 'Failed to place bid' });
-    }
-});
-
-// Award item to winner
-app.post('/api/drops/:dropId/award', async (req, res) => {
-    try {
-        const { dropId } = req.params;
-        const { winner_id, winning_bid } = req.body;
+        const { winning_bid } = req.body;
         
         await pool.query('BEGIN');
         
-        // Get drop and event info
+        // Get current drop info
         const dropResult = await pool.query(
-            `SELECT ed.*, e.event_type, e.event_name 
+            `SELECT ed.*, e.event_type 
              FROM event_drops ed
              JOIN events e ON ed.event_id = e.id
              WHERE ed.id = $1`,
@@ -928,37 +737,53 @@ app.post('/api/drops/:dropId/award', async (req, res) => {
         );
         
         const drop = dropResult.rows[0];
+        const oldPoints = drop.winning_bid || 0;
+        const newPoints = Math.abs(winning_bid || 0);
+        const pointDiff = oldPoints - newPoints;
         
-        // Update drop with winner
-        await pool.query(
-            `UPDATE event_drops 
-             SET won_by = $2, winning_bid = $3, distributed_at = NOW()
-             WHERE id = $1`,
-            [dropId, winner_id, winning_bid]
-        );
+        if (pointDiff !== 0 && drop.won_by) {
+            // Get category ID
+            const catResult = await pool.query(
+                'SELECT id FROM point_categories WHERE category_name = $1',
+                [drop.event_type]
+            );
+            
+            if (catResult.rows[0]) {
+                // Refund/charge the difference
+                await pool.query(
+                    `UPDATE user_points 
+                     SET current_points = current_points + $3,
+                         lifetime_spent = lifetime_spent - $3
+                     WHERE user_id = $1 AND category_id = $2`,
+                    [drop.won_by, catResult.rows[0].id, pointDiff]
+                );
+                
+                // Log the adjustment
+                await pool.query(
+                    `INSERT INTO point_transactions (
+                        user_id, category_id, points_change, 
+                        event_id, drop_id, description
+                    ) VALUES ($1, $2, $3, $4, $5, $6)`,
+                    [drop.won_by, catResult.rows[0].id, pointDiff, 
+                     drop.event_id, dropId, 
+                     `Point adjustment for ${drop.item_name}: ${oldPoints} → ${newPoints}`]
+                );
+            }
+        }
         
-        // Update bid as winning
+        // Update the drop
         await pool.query(
-            `UPDATE item_bids 
-             SET is_winning_bid = true 
-             WHERE drop_id = $1 AND user_id = $2`,
-            [dropId, winner_id]
-        );
-        
-        // Deduct points
-        await pool.query(
-            `SELECT add_user_points($1, $2, $3, $4, $5)`,
-            [winner_id, drop.event_type, -winning_bid, drop.event_id, 
-             `Won ${drop.item_name} for ${winning_bid} points`]
+            'UPDATE event_drops SET winning_bid = $2 WHERE id = $1',
+            [dropId, newPoints]
         );
         
         await pool.query('COMMIT');
-        res.json({ success: true });
+        res.json({ success: true, oldPoints, newPoints, pointDiff });
         
     } catch (error) {
         await pool.query('ROLLBACK');
-        console.error('Error awarding item:', error);
-        res.status(500).json({ error: 'Failed to award item' });
+        console.error('Error updating drop:', error);
+        res.status(500).json({ error: 'Failed to update drop' });
     }
 });
 
@@ -1067,130 +892,36 @@ app.get('/api/points/transactions', async (req, res) => {
     }
 });
 
-// Get event history
-app.get('/api/events/history', async (req, res) => {
+// Get sold items report
+app.get('/api/reports/sold-items', async (req, res) => {
     try {
-        const { limit = 20 } = req.query;
+        const { limit = 100 } = req.query;
         
-        const result = await pool.query(
-            `SELECT e.*,
-                    u.character_name as raid_leader_name,
-                    COUNT(DISTINCT ep.user_id) as total_participants,
-                    COUNT(DISTINCT ed.id) as total_drops,
-                    SUM(ed.winning_bid) as total_points_spent
-             FROM events e
-             LEFT JOIN users u ON e.raid_leader = u.id
-             LEFT JOIN event_participants ep ON e.id = ep.event_id AND ep.attended = true
-             LEFT JOIN event_drops ed ON e.id = ed.event_id AND ed.won_by IS NOT NULL
-             WHERE e.status = 'completed'
-             GROUP BY e.id, u.character_name
-             ORDER BY e.event_date DESC
-             LIMIT $1`,
-            [limit]
-        );
-        
-        res.json(result.rows);
-    } catch (error) {
-        console.error('Error fetching event history:', error);
-        res.status(500).json({ error: 'Failed to fetch event history' });
-    }
-});
-
-// Get potential drops for an event type (from mob_droplist)
-app.get('/api/events/potential-drops/:eventType', async (req, res) => {
-    try {
-        const { eventType } = req.params;
-        
-        // This query would need to be adjusted based on how you map event types to mobs
-        // For now, returning a placeholder structure
         const query = `
-            SELECT DISTINCT 
-                ie.itemid as item_id,
-                ie.name as item_name,
-                'Unknown' as mob_name,
-                0 as drop_rate
-            FROM item_equipment ie
-            WHERE ie.level >= 70
-            LIMIT 50
+            SELECT 
+                ed.item_name,
+                ed.dropped_from,
+                ed.external_buyer,
+                ed.sell_value,
+                ed.distributed_at,
+                e.event_name,
+                e.event_type
+            FROM event_drops ed
+            JOIN events e ON ed.event_id = e.id
+            WHERE ed.external_buyer IS NOT NULL
+            ORDER BY ed.distributed_at DESC
+            LIMIT $1
         `;
         
-        const result = await pool.query(query);
+        const result = await pool.query(query, [limit]);
         res.json(result.rows);
     } catch (error) {
-        console.error('Error fetching potential drops:', error);
-        res.status(500).json({ error: 'Failed to fetch potential drops' });
+        console.error('Error fetching sold items:', error);
+        res.status(500).json({ error: 'Failed to fetch sold items' });
     }
 });
 
-// ============ ADMIN FUNCTIONS ============
-
-// Manually adjust points
-app.post('/api/admin/points/adjust', async (req, res) => {
-    try {
-        const { user_id, category, amount, reason, adjusted_by } = req.body;
-        
-        await pool.query(
-            `SELECT add_user_points($1, $2, $3, NULL, $4)`,
-            [user_id, category, amount, reason || 'Manual adjustment']
-        );
-        
-        res.json({ success: true, message: 'Points adjusted successfully' });
-    } catch (error) {
-        console.error('Error adjusting points:', error);
-        res.status(500).json({ error: 'Failed to adjust points' });
-    }
-});
-
-// Update user role
-app.put('/api/admin/users/:userId/role', async (req, res) => {
-    try {
-        const { userId } = req.params;
-        const { role } = req.body;
-        
-        const result = await pool.query(
-            `UPDATE users SET role = $2, updated_at = NOW() 
-             WHERE id = $1 
-             RETURNING *`,
-            [userId, role]
-        );
-        
-        res.json({ success: true, user: result.rows[0] });
-    } catch (error) {
-        console.error('Error updating user role:', error);
-        res.status(500).json({ error: 'Failed to update user role' });
-    }
-});
-
-// Root route
-app.get('/', (req, res) => {
-    res.json({ 
-        message: 'FFXI Linkshell API', 
-        endpoints: {
-            test: '/api/test',
-            items: '/api/items',
-            item_details: '/api/items/:id',
-            mods: '/api/mods',
-            weapons: '/api/weapons'
-        }
-    });
-});
-
-// Test route
-app.get('/api/test', async (req, res) => {
-    try {
-        const result = await pool.query('SELECT NOW()');
-        res.json({ 
-            message: 'API is working!',
-            database: 'Connected',
-            time: result.rows[0].now 
-        });
-    } catch (error) {
-        res.json({ 
-            message: 'API is working but database connection failed',
-            error: error.message 
-        });
-    }
-});
+// ============ ITEM DATABASE ============
 
 // Get all items with stats
 app.get('/api/items', async (req, res) => {
@@ -1434,6 +1165,45 @@ app.get('/api/weapons', async (req, res) => {
     } catch (error) {
         console.error('Error fetching weapons:', error);
         res.status(500).json({ error: 'Failed to fetch weapons', details: error.message });
+    }
+});
+
+// ============ ADMIN FUNCTIONS ============
+
+// Manually adjust points
+app.post('/api/admin/points/adjust', async (req, res) => {
+    try {
+        const { user_id, category, amount, reason, adjusted_by } = req.body;
+        
+        await pool.query(
+            `SELECT add_user_points($1, $2, $3, NULL, $4)`,
+            [user_id, category, amount, reason || 'Manual adjustment']
+        );
+        
+        res.json({ success: true, message: 'Points adjusted successfully' });
+    } catch (error) {
+        console.error('Error adjusting points:', error);
+        res.status(500).json({ error: 'Failed to adjust points' });
+    }
+});
+
+// Update user role
+app.put('/api/admin/users/:userId/role', async (req, res) => {
+    try {
+        const { userId } = req.params;
+        const { role } = req.body;
+        
+        const result = await pool.query(
+            `UPDATE users SET role = $2, updated_at = NOW() 
+             WHERE id = $1 
+             RETURNING *`,
+            [userId, role]
+        );
+        
+        res.json({ success: true, user: result.rows[0] });
+    } catch (error) {
+        console.error('Error updating user role:', error);
+        res.status(500).json({ error: 'Failed to update user role' });
     }
 });
 
