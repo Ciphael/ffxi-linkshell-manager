@@ -250,7 +250,128 @@ app.get('/api/users/:userId/points', async (req, res) => {
 });
 
 // ============ EVENT MANAGEMENT ============
+// ============ BOSS DROP CONFIGURATION ENDPOINTS ============
+// Add these to your server.js
 
+// Get boss drop configuration
+app.get('/api/boss/:mobDropId/drop-config', async (req, res) => {
+    try {
+        const { mobDropId } = req.params;
+        
+        const query = `
+            SELECT * FROM boss_drop_config 
+            WHERE mob_dropid = $1
+            ORDER BY drop_rate DESC, item_name
+        `;
+        
+        const result = await pool.query(query, [mobDropId]);
+        res.json(result.rows);
+    } catch (error) {
+        console.error('Error fetching boss config:', error);
+        res.status(500).json({ error: 'Failed to fetch configuration' });
+    }
+});
+
+// Save boss drop configuration
+app.post('/api/boss/:mobDropId/drop-config', async (req, res) => {
+    try {
+        const { mobDropId } = req.params;
+        const { configs } = req.body;
+        
+        await pool.query('BEGIN');
+        
+        // Clear existing config for this boss
+        await pool.query('DELETE FROM boss_drop_config WHERE mob_dropid = $1', [mobDropId]);
+        
+        // Insert new configurations
+        for (const config of configs) {
+            await pool.query(
+                `INSERT INTO boss_drop_config 
+                 (mob_dropid, item_name, drop_rate, min_points, max_quantity, always_drops)
+                 VALUES ($1, $2, $3, $4, $5, $6)`,
+                [mobDropId, config.item_name, config.drop_rate, 
+                 config.min_points, config.max_quantity, config.always_drops]
+            );
+        }
+        
+        await pool.query('COMMIT');
+        res.json({ success: true });
+        
+    } catch (error) {
+        await pool.query('ROLLBACK');
+        console.error('Error saving boss config:', error);
+        res.status(500).json({ error: 'Failed to save configuration' });
+    }
+});
+
+// Add boss to event
+app.post('/api/events/:eventId/bosses', async (req, res) => {
+    try {
+        const { eventId } = req.params;
+        const { mob_dropid, mob_name } = req.body;
+        
+        const result = await pool.query(
+            `INSERT INTO event_bosses (event_id, mob_dropid, mob_name, killed)
+             VALUES ($1, $2, $3, false)
+             RETURNING *`,
+            [eventId, mob_dropid, mob_name]
+        );
+        
+        res.json(result.rows[0]);
+    } catch (error) {
+        console.error('Error adding boss:', error);
+        res.status(500).json({ error: 'Failed to add boss' });
+    }
+});
+
+// Get bosses for event
+app.get('/api/events/:eventId/bosses', async (req, res) => {
+    try {
+        const { eventId } = req.params;
+        
+        const result = await pool.query(
+            'SELECT * FROM event_bosses WHERE event_id = $1 ORDER BY id',
+            [eventId]
+        );
+        
+        res.json(result.rows);
+    } catch (error) {
+        console.error('Error fetching bosses:', error);
+        res.status(500).json({ error: 'Failed to fetch bosses' });
+    }
+});
+
+// Update boss status (killed/not killed)
+app.put('/api/bosses/:bossId/status', async (req, res) => {
+    try {
+        const { bossId } = req.params;
+        const { killed } = req.body;
+        
+        await pool.query(
+            'UPDATE event_bosses SET killed = $2 WHERE id = $1',
+            [bossId, killed]
+        );
+        
+        res.json({ success: true });
+    } catch (error) {
+        console.error('Error updating boss status:', error);
+        res.status(500).json({ error: 'Failed to update status' });
+    }
+});
+
+// Remove boss from event  
+app.delete('/api/bosses/:bossId', async (req, res) => {
+    try {
+        const { bossId } = req.params;
+        
+        await pool.query('DELETE FROM event_bosses WHERE id = $1', [bossId]);
+        
+        res.json({ success: true });
+    } catch (error) {
+        console.error('Error removing boss:', error);
+        res.status(500).json({ error: 'Failed to remove boss' });
+    }
+});
 // Save planned drops for an event
 app.post('/api/events/:eventId/planned-drops', async (req, res) => {
     try {
