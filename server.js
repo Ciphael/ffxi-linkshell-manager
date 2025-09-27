@@ -251,6 +251,40 @@ app.get('/api/users/:userId/points', async (req, res) => {
 
 // ============ EVENT MANAGEMENT ============
 
+// Save planned drops for an event
+app.post('/api/events/:eventId/planned-drops', async (req, res) => {
+    try {
+        const { eventId } = req.params;
+        const { drops } = req.body;
+        
+        await pool.query('BEGIN');
+        
+        // Clear existing planned drops for this event
+        await pool.query('DELETE FROM event_planned_drops WHERE event_id = $1', [eventId]);
+        
+        // Insert new planned drops
+        for (const drop of drops) {
+            await pool.query(
+                `INSERT INTO event_planned_drops (
+                    event_id, mob_name, item_id, item_name, quantity,
+                    min_points, allocation_type, assigned_to, external_buyer, sell_price
+                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+                [eventId, drop.mob_name, drop.item_id, drop.item_name, drop.quantity,
+                 drop.min_points, drop.allocation_type, drop.assigned_to, 
+                 drop.external_buyer, drop.sell_price]
+            );
+        }
+        
+        await pool.query('COMMIT');
+        res.json({ success: true });
+        
+    } catch (error) {
+        await pool.query('ROLLBACK');
+        console.error('Error saving planned drops:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
 // Create new event
 app.post('/api/events', async (req, res) => {
     try {
