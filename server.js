@@ -183,7 +183,7 @@ app.post('/api/boss/:mobDropId/drop-config', async (req, res) => {
     }
 });
 
-// Add boss to event (with quantity support)
+// Add boss to event (with quantity support - creates separate instances)
 app.post('/api/events/:eventId/bosses', async (req, res) => {
     try {
         const { eventId } = req.params;
@@ -196,22 +196,30 @@ app.post('/api/events/:eventId/bosses', async (req, res) => {
             'SELECT COALESCE(MAX(boss_order), -1) + 1 as next_order FROM event_bosses WHERE event_id = $1',
             [eventId]
         );
-        const bossOrder = orderResult.rows[0].next_order;
+        let bossOrder = orderResult.rows[0].next_order;
 
-        const result = await pool.query(
-            `INSERT INTO event_bosses (event_id, mob_dropid, mob_name, killed, quantity, boss_order)
-             VALUES ($1, $2, $3, false, $4, $5)
-             RETURNING *`,
-            [eventId, mob_dropid, mob_name, quantity || 1, bossOrder]
-        );
+        const createdBosses = [];
+        const qty = quantity || 1;
 
-        const boss = result.rows[0];
+        // Create separate boss instances for each quantity
+        for (let i = 0; i < qty; i++) {
+            const result = await pool.query(
+                `INSERT INTO event_bosses (event_id, mob_dropid, mob_name, killed, quantity, boss_order)
+                 VALUES ($1, $2, $3, false, 1, $4)
+                 RETURNING *`,
+                [eventId, mob_dropid, `${mob_name} #${i + 1}`, bossOrder + i]
+            );
 
-        // Auto-create planned drops from mob_droplist and item_classifications
-        await createPlannedDropsForBoss(eventId, boss.id, mob_dropid);
+            const boss = result.rows[0];
+
+            // Auto-create planned drops from mob_droplist and item_classifications
+            await createPlannedDropsForBoss(eventId, boss.id, mob_dropid);
+
+            createdBosses.push(boss);
+        }
 
         await pool.query('COMMIT');
-        res.json(boss);
+        res.json({ success: true, bosses: createdBosses });
     } catch (error) {
         await pool.query('ROLLBACK');
         console.error('Error adding boss:', error);
