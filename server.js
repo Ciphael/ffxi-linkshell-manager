@@ -80,6 +80,56 @@ app.get('/api/test', async (req, res) => {
     }
 });
 
+// ============ HELPER FUNCTIONS ============
+
+// Helper: Create planned drops for a boss based on mob_droplist and item_classifications
+async function createPlannedDropsForBoss(eventId, eventBossId, mobDropId) {
+    try {
+        // Get drops from mob_droplist with item classifications
+        const dropsQuery = `
+            SELECT
+                md.itemId,
+                COALESCE(ie.name, iw.name, ib.name, 'Unknown Item') as item_name,
+                md.itemRate,
+                md.dropType,
+                ic.classification,
+                ic.estimated_value
+            FROM mob_droplist md
+            LEFT JOIN item_equipment ie ON md.itemId = ie.itemid
+            LEFT JOIN item_weapon iw ON md.itemId = iw.itemid
+            LEFT JOIN item_basic ib ON md.itemId = ib.itemid
+            LEFT JOIN item_classifications ic ON md.itemId = ic.item_id
+            WHERE md.dropId = $1
+            AND COALESCE(ic.classification, 'Marketable') = 'Marketable'
+            ORDER BY md.itemRate DESC
+        `;
+
+        const dropsResult = await pool.query(dropsQuery, [mobDropId]);
+
+        // Insert planned drops
+        for (const drop of dropsResult.rows) {
+            await pool.query(
+                `INSERT INTO planned_event_drops (
+                    event_id, event_boss_id, item_id, item_name,
+                    drop_rate, classification, expected_value
+                ) VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+                [
+                    eventId,
+                    eventBossId,
+                    drop.itemid,
+                    drop.item_name,
+                    drop.itemrate > 100 ? drop.itemrate / 10 : drop.itemrate,
+                    drop.classification || 'Marketable',
+                    drop.estimated_value || 0
+                ]
+            );
+        }
+    } catch (error) {
+        console.error('Error creating planned drops:', error);
+        throw error;
+    }
+}
+
 // ============ BOSS DROP CONFIGURATION ============
 
 // Get boss drop configuration
@@ -133,21 +183,37 @@ app.post('/api/boss/:mobDropId/drop-config', async (req, res) => {
     }
 });
 
-// Add boss to event
+// Add boss to event (with quantity support)
 app.post('/api/events/:eventId/bosses', async (req, res) => {
     try {
         const { eventId } = req.params;
-        const { mob_dropid, mob_name } = req.body;
-        
-        const result = await pool.query(
-            `INSERT INTO event_bosses (event_id, mob_dropid, mob_name, killed)
-             VALUES ($1, $2, $3, false)
-             RETURNING *`,
-            [eventId, mob_dropid, mob_name]
+        const { mob_dropid, mob_name, quantity } = req.body;
+
+        await pool.query('BEGIN');
+
+        // Get the next boss_order for this event
+        const orderResult = await pool.query(
+            'SELECT COALESCE(MAX(boss_order), -1) + 1 as next_order FROM event_bosses WHERE event_id = $1',
+            [eventId]
         );
-        
-        res.json(result.rows[0]);
+        const bossOrder = orderResult.rows[0].next_order;
+
+        const result = await pool.query(
+            `INSERT INTO event_bosses (event_id, mob_dropid, mob_name, killed, quantity, boss_order)
+             VALUES ($1, $2, $3, false, $4, $5)
+             RETURNING *`,
+            [eventId, mob_dropid, mob_name, quantity || 1, bossOrder]
+        );
+
+        const boss = result.rows[0];
+
+        // Auto-create planned drops from mob_droplist and item_classifications
+        await createPlannedDropsForBoss(eventId, boss.id, mob_dropid);
+
+        await pool.query('COMMIT');
+        res.json(boss);
     } catch (error) {
+        await pool.query('ROLLBACK');
         console.error('Error adding boss:', error);
         res.status(500).json({ error: 'Failed to add boss' });
     }
@@ -202,19 +268,270 @@ app.delete('/api/bosses/:bossId', async (req, res) => {
     }
 });
 
+// ============ PLANNED EVENT DROPS (NEW WORKFLOW) ============
+
+// Get planned drops for an event boss
+app.get('/api/bosses/:bossId/planned-drops', async (req, res) => {
+    try {
+        const { bossId } = req.params;
+
+        const query = `
+            SELECT ped.*, u.character_name as assigned_character_name
+            FROM planned_event_drops ped
+            LEFT JOIN users u ON ped.won_by = u.id
+            WHERE ped.event_boss_id = $1
+            ORDER BY ped.drop_rate DESC, ped.item_name
+        `;
+
+        const result = await pool.query(query, [bossId]);
+        res.json(result.rows);
+    } catch (error) {
+        console.error('Error fetching planned drops:', error);
+        res.status(500).json({ error: 'Failed to fetch planned drops' });
+    }
+});
+
+// Get all drops for mob_droplist (for "Boss Killed" modal)
+app.get('/api/mob-droplist/:mobDropId/all-drops', async (req, res) => {
+    try {
+        const { mobDropId } = req.params;
+
+        const query = `
+            SELECT
+                md.itemId,
+                COALESCE(ie.name, iw.name, ib.name, 'Unknown Item') as item_name,
+                md.itemRate,
+                md.dropType,
+                md.groupId,
+                md.groupRate,
+                ic.classification,
+                ic.estimated_value
+            FROM mob_droplist md
+            LEFT JOIN item_equipment ie ON md.itemId = ie.itemid
+            LEFT JOIN item_weapon iw ON md.itemId = iw.itemid
+            LEFT JOIN item_basic ib ON md.itemId = ib.itemid
+            LEFT JOIN item_classifications ic ON md.itemId = ic.item_id
+            WHERE md.dropId = $1
+            ORDER BY md.dropType, md.groupId, md.itemRate DESC
+        `;
+
+        const result = await pool.query(query, [mobDropId]);
+
+        const formattedDrops = result.rows.map(drop => ({
+            ...drop,
+            displayRate: drop.itemrate > 100 ?
+                `${(drop.itemrate / 10).toFixed(1)}%` :
+                `${drop.itemrate}%`,
+            classification: drop.classification || 'Marketable'
+        }));
+
+        res.json(formattedDrops);
+    } catch (error) {
+        console.error('Error fetching all mob drops:', error);
+        res.status(500).json({ error: 'Failed to fetch drops' });
+    }
+});
+
+// Confirm drops for a killed boss
+app.post('/api/bosses/:bossId/confirm-drops', async (req, res) => {
+    try {
+        const { bossId } = req.params;
+        const { confirmedDrops } = req.body; // Array of drop objects
+
+        await pool.query('BEGIN');
+
+        // Get event info for this boss
+        const bossInfo = await pool.query(
+            'SELECT event_id, mob_dropid FROM event_bosses WHERE id = $1',
+            [bossId]
+        );
+
+        if (bossInfo.rows.length === 0) {
+            throw new Error('Boss not found');
+        }
+
+        const { event_id, mob_dropid } = bossInfo.rows[0];
+
+        // Update or insert confirmed drops
+        for (const drop of confirmedDrops) {
+            // Check if this drop was pre-planned
+            const existingDrop = await pool.query(
+                `SELECT id FROM planned_event_drops
+                 WHERE event_boss_id = $1 AND item_id = $2`,
+                [bossId, drop.item_id]
+            );
+
+            if (existingDrop.rows.length > 0) {
+                // Update existing planned drop
+                await pool.query(
+                    `UPDATE planned_event_drops
+                     SET confirmed_dropped = true,
+                         actual_dropped_at = NOW(),
+                         allocation_type = $3,
+                         won_by = $4,
+                         winning_bid = $5,
+                         external_buyer = $6,
+                         sell_value = $7,
+                         ls_fund_category = $8
+                     WHERE id = $1 AND event_boss_id = $2`,
+                    [
+                        existingDrop.rows[0].id,
+                        bossId,
+                        drop.allocation_type || 'unassigned',
+                        drop.won_by || null,
+                        drop.winning_bid || 0,
+                        drop.external_buyer || null,
+                        drop.sell_value || 0,
+                        drop.ls_fund_category || null
+                    ]
+                );
+            } else {
+                // Insert new drop (wasn't pre-planned)
+                await pool.query(
+                    `INSERT INTO planned_event_drops (
+                        event_id, event_boss_id, item_id, item_name,
+                        confirmed_dropped, actual_dropped_at,
+                        allocation_type, won_by, winning_bid,
+                        external_buyer, sell_value, ls_fund_category,
+                        classification
+                    ) VALUES ($1, $2, $3, $4, true, NOW(), $5, $6, $7, $8, $9, $10, $11)`,
+                    [
+                        event_id,
+                        bossId,
+                        drop.item_id,
+                        drop.item_name,
+                        drop.allocation_type || 'unassigned',
+                        drop.won_by || null,
+                        drop.winning_bid || 0,
+                        drop.external_buyer || null,
+                        drop.sell_value || 0,
+                        drop.ls_fund_category || null,
+                        drop.classification || 'Marketable'
+                    ]
+                );
+            }
+
+            // Deduct points if won by LS member
+            if (drop.won_by && drop.winning_bid > 0) {
+                const eventResult = await pool.query(
+                    'SELECT event_type FROM events WHERE id = $1',
+                    [event_id]
+                );
+                const eventType = eventResult.rows[0].event_type;
+
+                const catResult = await pool.query(
+                    'SELECT id FROM point_categories WHERE category_name = $1',
+                    [eventType]
+                );
+
+                if (catResult.rows[0]) {
+                    const categoryId = catResult.rows[0].id;
+
+                    await pool.query(
+                        `UPDATE user_points
+                         SET current_points = current_points - $3,
+                             lifetime_spent = lifetime_spent + $3
+                         WHERE user_id = $1 AND category_id = $2`,
+                        [drop.won_by, categoryId, drop.winning_bid]
+                    );
+
+                    await pool.query(
+                        `INSERT INTO point_transactions (
+                            user_id, category_id, points_change, event_id, description
+                        ) VALUES ($1, $2, $3, $4, $5)`,
+                        [drop.won_by, categoryId, -drop.winning_bid, event_id,
+                         `Won ${drop.item_name} for ${drop.winning_bid} points`]
+                    );
+                }
+            }
+        }
+
+        // Mark boss as killed
+        await pool.query(
+            'UPDATE event_bosses SET killed = true, completed_at = NOW() WHERE id = $1',
+            [bossId]
+        );
+
+        await pool.query('COMMIT');
+        res.json({ success: true, message: 'Drops confirmed successfully' });
+
+    } catch (error) {
+        await pool.query('ROLLBACK');
+        console.error('Error confirming drops:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Get LS funds summary
+app.get('/api/ls-funds', async (req, res) => {
+    try {
+        const result = await pool.query(
+            'SELECT * FROM ls_funds ORDER BY category'
+        );
+        res.json(result.rows);
+    } catch (error) {
+        console.error('Error fetching LS funds:', error);
+        res.status(500).json({ error: 'Failed to fetch LS funds' });
+    }
+});
+
+// Allocate LS funds
+app.post('/api/ls-funds/allocate', async (req, res) => {
+    try {
+        const { from_category, to_category, amount, description, created_by } = req.body;
+
+        await pool.query('BEGIN');
+
+        // Deduct from source
+        await pool.query(
+            'UPDATE ls_funds SET amount = amount - $2, updated_at = NOW() WHERE category = $1',
+            [from_category, amount]
+        );
+
+        // Add to destination
+        await pool.query(
+            'UPDATE ls_funds SET amount = amount + $2, updated_at = NOW() WHERE category = $1',
+            [to_category, amount]
+        );
+
+        // Record transactions
+        await pool.query(
+            `INSERT INTO ls_fund_transactions (
+                fund_category, amount, transaction_type, description, created_by
+            ) VALUES ($1, $2, 'withdrawal', $3, $4)`,
+            [from_category, amount, description, created_by]
+        );
+
+        await pool.query(
+            `INSERT INTO ls_fund_transactions (
+                fund_category, amount, transaction_type, description, created_by
+            ) VALUES ($1, $2, 'deposit', $3, $4)`,
+            [to_category, amount, description, created_by]
+        );
+
+        await pool.query('COMMIT');
+        res.json({ success: true });
+
+    } catch (error) {
+        await pool.query('ROLLBACK');
+        console.error('Error allocating funds:', error);
+        res.status(500).json({ error: 'Failed to allocate funds' });
+    }
+});
+
 // Get mobs for an event based on zone
 app.get('/api/events/:eventId/zone-mobs', async (req, res) => {
     try {
         const { eventId } = req.params;
-        
+
         // Get event type to determine zone category
         const eventResult = await pool.query(
             'SELECT event_type FROM events WHERE id = $1',
             [eventId]
         );
-        
+
         const eventType = eventResult.rows[0]?.event_type;
-        
+
         // Get mobs from zones matching this event type
         const query = `
             SELECT m.dropId, m.mob_name, z.zone_name, m.mob_type, m.mob_level
@@ -223,7 +540,7 @@ app.get('/api/events/:eventId/zone-mobs', async (req, res) => {
             WHERE z.zone_category = UPPER($1)
             ORDER BY z.zone_name, m.mob_name
         `;
-        
+
         const result = await pool.query(query, [eventType || 'SKY']);
         res.json(result.rows);
     } catch (error) {
