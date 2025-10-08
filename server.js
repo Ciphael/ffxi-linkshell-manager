@@ -276,6 +276,52 @@ app.delete('/api/bosses/:bossId', async (req, res) => {
     }
 });
 
+// ============ MARKET RATES MANAGEMENT ============
+
+// Get all marketable items with their rates
+app.get('/api/market-rates', async (req, res) => {
+    try {
+        const query = `
+            SELECT
+                ic.item_id,
+                ic.item_name,
+                ic.classification,
+                ic.points_required,
+                ic.market_rate,
+                ic.estimated_value
+            FROM item_classifications ic
+            WHERE ic.classification = 'Marketable'
+            ORDER BY ic.item_name
+        `;
+
+        const result = await pool.query(query);
+        res.json(result.rows);
+    } catch (error) {
+        console.error('Error fetching market rates:', error);
+        res.status(500).json({ error: 'Failed to fetch market rates' });
+    }
+});
+
+// Update market rates for items
+app.put('/api/market-rates/:itemId', async (req, res) => {
+    try {
+        const { itemId } = req.params;
+        const { points_required, market_rate } = req.body;
+
+        await pool.query(
+            `UPDATE item_classifications
+             SET points_required = $2, market_rate = $3
+             WHERE item_id = $1`,
+            [itemId, points_required, market_rate]
+        );
+
+        res.json({ success: true });
+    } catch (error) {
+        console.error('Error updating market rates:', error);
+        res.status(500).json({ error: 'Failed to update market rates' });
+    }
+});
+
 // ============ PLANNED EVENT DROPS (NEW WORKFLOW) ============
 
 // Get planned drops for an event boss
@@ -284,9 +330,14 @@ app.get('/api/bosses/:bossId/planned-drops', async (req, res) => {
         const { bossId } = req.params;
 
         const query = `
-            SELECT ped.*, u.character_name as assigned_character_name
+            SELECT
+                ped.*,
+                u.character_name as assigned_character_name,
+                ic.points_required,
+                ic.market_rate
             FROM planned_event_drops ped
             LEFT JOIN users u ON ped.won_by = u.id
+            LEFT JOIN item_classifications ic ON ped.item_id = ic.item_id
             WHERE ped.event_boss_id = $1
             ORDER BY ped.drop_rate DESC, ped.item_name
         `;
@@ -313,7 +364,9 @@ app.get('/api/mob-droplist/:mobDropId/all-drops', async (req, res) => {
                 md.groupId,
                 md.groupRate,
                 ic.classification,
-                ic.estimated_value
+                ic.estimated_value,
+                ic.points_required,
+                ic.market_rate
             FROM mob_droplist md
             LEFT JOIN item_equipment ie ON md.itemId = ie.itemid
             LEFT JOIN item_weapon iw ON md.itemId = iw.itemid
@@ -330,7 +383,9 @@ app.get('/api/mob-droplist/:mobDropId/all-drops', async (req, res) => {
             displayRate: drop.itemrate > 100 ?
                 `${(drop.itemrate / 10).toFixed(1)}%` :
                 `${drop.itemrate}%`,
-            classification: drop.classification || 'Marketable'
+            classification: drop.classification || 'Marketable',
+            points_required: drop.points_required || 0,
+            market_rate: drop.market_rate || 0
         }));
 
         res.json(formattedDrops);
