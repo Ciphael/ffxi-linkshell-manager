@@ -304,6 +304,27 @@ app.delete('/api/bosses/:bossId', async (req, res) => {
 
 // ============ MARKET RATES MANAGEMENT ============
 
+// Get all Pop Items from item_classifications (for purchase dropdown)
+app.get('/api/pop-items', async (req, res) => {
+    try {
+        const query = `
+            SELECT
+                ic.item_id,
+                ic.item_name,
+                ic.classification
+            FROM item_classifications ic
+            WHERE ic.classification = 'Pop Item'
+            ORDER BY ic.item_name
+        `;
+
+        const result = await pool.query(query);
+        res.json(result.rows);
+    } catch (error) {
+        console.error('Error fetching pop items:', error);
+        res.status(500).json({ error: 'Failed to fetch pop items' });
+    }
+});
+
 // Get all items from all bosses with their rates and boss info
 app.get('/api/market-rates', async (req, res) => {
     try {
