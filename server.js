@@ -266,11 +266,36 @@ app.put('/api/bosses/:bossId/status', async (req, res) => {
 app.delete('/api/bosses/:bossId', async (req, res) => {
     try {
         const { bossId } = req.params;
-        
+
+        await pool.query('BEGIN');
+
+        // Delete all uncommitted planned drops for this boss
+        await pool.query(
+            'DELETE FROM planned_event_drops WHERE event_boss_id = $1 AND committed = FALSE',
+            [bossId]
+        );
+
+        // Check if there are any committed drops
+        const committedDrops = await pool.query(
+            'SELECT COUNT(*) as count FROM planned_event_drops WHERE event_boss_id = $1 AND committed = TRUE',
+            [bossId]
+        );
+
+        if (committedDrops.rows[0].count > 0) {
+            await pool.query('ROLLBACK');
+            return res.status(400).json({
+                error: 'Cannot delete boss with committed drops. This boss has been killed and drops have been allocated.'
+            });
+        }
+
+        // Delete the boss
         await pool.query('DELETE FROM event_bosses WHERE id = $1', [bossId]);
-        
+
+        await pool.query('COMMIT');
+
         res.json({ success: true });
     } catch (error) {
+        await pool.query('ROLLBACK');
         console.error('Error removing boss:', error);
         res.status(500).json({ error: 'Failed to remove boss' });
     }
@@ -350,6 +375,34 @@ app.get('/api/bosses/:bossId/planned-drops', async (req, res) => {
     }
 });
 
+// Update planned drop pre-configuration (auto-save)
+app.put('/api/planned-drops/:dropId', async (req, res) => {
+    try {
+        const { dropId } = req.params;
+        const { allocation_type, won_by, expected_value } = req.body;
+
+        const query = `
+            UPDATE planned_event_drops
+            SET allocation_type = $2,
+                won_by = $3,
+                expected_value = $4
+            WHERE id = $1 AND committed = FALSE
+            RETURNING *
+        `;
+
+        const result = await pool.query(query, [dropId, allocation_type, won_by, expected_value]);
+
+        if (result.rows.length === 0) {
+            return res.status(400).json({ error: 'Cannot update committed drops or drop not found' });
+        }
+
+        res.json({ success: true, drop: result.rows[0] });
+    } catch (error) {
+        console.error('Error updating planned drop:', error);
+        res.status(500).json({ error: 'Failed to update planned drop' });
+    }
+});
+
 // Get all drops for mob_droplist (for "Boss Killed" modal)
 app.get('/api/mob-droplist/:mobDropId/all-drops', async (req, res) => {
     try {
@@ -425,10 +478,11 @@ app.post('/api/bosses/:bossId/confirm-drops', async (req, res) => {
             );
 
             if (existingDrop.rows.length > 0) {
-                // Update existing planned drop
+                // Update existing planned drop and mark as committed
                 await pool.query(
                     `UPDATE planned_event_drops
                      SET confirmed_dropped = true,
+                         committed = true,
                          actual_dropped_at = NOW(),
                          allocation_type = $3,
                          won_by = $4,
@@ -449,15 +503,15 @@ app.post('/api/bosses/:bossId/confirm-drops', async (req, res) => {
                     ]
                 );
             } else {
-                // Insert new drop (wasn't pre-planned)
+                // Insert new drop (wasn't pre-planned) and mark as committed
                 await pool.query(
                     `INSERT INTO planned_event_drops (
                         event_id, event_boss_id, item_id, item_name,
-                        confirmed_dropped, actual_dropped_at,
+                        confirmed_dropped, committed, actual_dropped_at,
                         allocation_type, won_by, winning_bid,
                         external_buyer, sell_value, ls_fund_category,
                         classification
-                    ) VALUES ($1, $2, $3, $4, true, NOW(), $5, $6, $7, $8, $9, $10, $11)`,
+                    ) VALUES ($1, $2, $3, $4, true, true, NOW(), $5, $6, $7, $8, $9, $10, $11)`,
                     [
                         event_id,
                         bossId,
