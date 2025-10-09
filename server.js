@@ -86,6 +86,7 @@ app.get('/api/test', async (req, res) => {
 async function createPlannedDropsForBoss(eventId, eventBossId, mobDropId) {
     try {
         // Get drops from mob_droplist with item classifications
+        // Include Marketable, Money Items, and Pop Items
         const dropsQuery = `
             SELECT
                 md.itemId,
@@ -100,7 +101,7 @@ async function createPlannedDropsForBoss(eventId, eventBossId, mobDropId) {
             LEFT JOIN item_basic ib ON md.itemId = ib.itemid
             LEFT JOIN item_classifications ic ON md.itemId = ic.item_id
             WHERE md.dropId = $1
-            AND COALESCE(ic.classification, 'Marketable') = 'Marketable'
+            AND COALESCE(ic.classification, 'Marketable') IN ('Marketable', 'Money Item', 'Pop Item')
             ORDER BY md.itemRate DESC
         `;
 
