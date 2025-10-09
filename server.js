@@ -304,27 +304,6 @@ app.delete('/api/bosses/:bossId', async (req, res) => {
 
 // ============ MARKET RATES MANAGEMENT ============
 
-// Get all Pop Items from item_classifications (for purchase dropdown)
-app.get('/api/pop-items', async (req, res) => {
-    try {
-        const query = `
-            SELECT
-                ic.item_id,
-                ic.item_name,
-                ic.classification
-            FROM item_classifications ic
-            WHERE ic.classification = 'Pop Item'
-            ORDER BY ic.item_name
-        `;
-
-        const result = await pool.query(query);
-        res.json(result.rows);
-    } catch (error) {
-        console.error('Error fetching pop items:', error);
-        res.status(500).json({ error: 'Failed to fetch pop items' });
-    }
-});
-
 // Get all items from all bosses with their rates and boss info
 app.get('/api/market-rates', async (req, res) => {
     try {
@@ -1992,44 +1971,6 @@ app.get('/api/ls-shop/transactions', async (req, res) => {
     } catch (error) {
         console.error('Error fetching shop transactions:', error);
         res.status(500).json({ error: 'Failed to fetch transactions' });
-    }
-});
-
-// Populate Pop Items from database
-app.post('/api/admin/populate-pop-items', async (req, res) => {
-    try {
-        const query = `
-            INSERT INTO item_classifications (item_id, item_name, classification)
-            SELECT DISTINCT
-                md.itemId as item_id,
-                COALESCE(ie.name, iw.name, ib.name, 'Unknown Item') as item_name,
-                'Pop Item' as classification
-            FROM mob_droplist md
-            LEFT JOIN item_equipment ie ON md.itemId = ie.itemid
-            LEFT JOIN item_weapon iw ON md.itemId = iw.itemid
-            LEFT JOIN item_basic ib ON md.itemId = ib.itemid
-            WHERE
-                (
-                    LOWER(COALESCE(ie.name, iw.name, ib.name, '')) LIKE '%gem%'
-                    OR LOWER(COALESCE(ie.name, iw.name, ib.name, '')) LIKE '%orb%'
-                    OR LOWER(COALESCE(ie.name, iw.name, ib.name, '')) LIKE '%seal%'
-                    OR LOWER(COALESCE(ie.name, iw.name, ib.name, '')) LIKE '%testimony%'
-                    OR LOWER(COALESCE(ie.name, iw.name, ib.name, '')) LIKE '%charm%'
-                    OR LOWER(COALESCE(ie.name, iw.name, ib.name, '')) LIKE '%cell%'
-                )
-                AND md.itemId IS NOT NULL
-                AND COALESCE(ie.name, iw.name, ib.name, '') != ''
-            ON CONFLICT (item_id) DO UPDATE
-            SET classification = 'Pop Item'
-            WHERE item_classifications.classification != 'Marketable'
-              AND item_classifications.classification != 'Money Item'
-        `;
-
-        const result = await pool.query(query);
-        res.json({ success: true, message: 'Pop items populated successfully', rowCount: result.rowCount });
-    } catch (error) {
-        console.error('Error populating pop items:', error);
-        res.status(500).json({ error: 'Failed to populate pop items' });
     }
 });
 
