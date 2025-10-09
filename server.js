@@ -337,14 +337,38 @@ app.get('/api/market-rates', async (req, res) => {
 app.put('/api/market-rates/:itemId', async (req, res) => {
     try {
         const { itemId } = req.params;
-        const { points_required, market_rate } = req.body;
+        const { classification, points_required, market_rate } = req.body;
 
-        await pool.query(
-            `UPDATE item_classifications
-             SET points_required = $2, market_rate = $3
-             WHERE item_id = $1`,
-            [itemId, points_required, market_rate]
-        );
+        // Check if item exists in item_classifications
+        const checkQuery = `SELECT item_id FROM item_classifications WHERE item_id = $1`;
+        const checkResult = await pool.query(checkQuery, [itemId]);
+
+        if (checkResult.rows.length > 0) {
+            // Update existing
+            await pool.query(
+                `UPDATE item_classifications
+                 SET classification = $2, points_required = $3, market_rate = $4
+                 WHERE item_id = $1`,
+                [itemId, classification, points_required, market_rate]
+            );
+        } else {
+            // Insert new - need to get item name first
+            const itemNameQuery = `
+                SELECT COALESCE(ie.name, iw.name, ib.name) as item_name
+                FROM (SELECT $1::integer as itemid) i
+                LEFT JOIN item_equipment ie ON i.itemid = ie.itemid
+                LEFT JOIN item_weapon iw ON i.itemid = iw.itemid
+                LEFT JOIN item_basic ib ON i.itemid = ib.itemid
+            `;
+            const itemNameResult = await pool.query(itemNameQuery, [itemId]);
+            const itemName = itemNameResult.rows[0]?.item_name || 'Unknown Item';
+
+            await pool.query(
+                `INSERT INTO item_classifications (item_id, item_name, classification, points_required, market_rate)
+                 VALUES ($1, $2, $3, $4, $5)`,
+                [itemId, itemName, classification, points_required, market_rate]
+            );
+        }
 
         res.json({ success: true });
     } catch (error) {
