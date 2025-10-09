@@ -1308,7 +1308,7 @@ app.get('/api/users/:userId/wishlist', async (req, res) => {
 
 // ============ REPORTS AND STATISTICS ============
 
-// Get DKP standings for a category
+// Get AP standings for a category
 app.get('/api/points/standings/:category', async (req, res) => {
     try {
         const { category } = req.params;
@@ -1681,6 +1681,227 @@ app.put('/api/admin/users/:userId/role', async (req, res) => {
     } catch (error) {
         console.error('Error updating user role:', error);
         res.status(500).json({ error: 'Failed to update user role' });
+    }
+});
+
+// ============ LS BANK ENDPOINTS ============
+
+// Get all bank transactions
+app.get('/api/ls-bank/transactions', async (req, res) => {
+    try {
+        const result = await pool.query(`
+            SELECT
+                t.*,
+                u.character_name as recorded_by_name,
+                e.name as event_name
+            FROM ls_bank_transactions t
+            LEFT JOIN users u ON t.recorded_by = u.id
+            LEFT JOIN events e ON t.event_id = e.id
+            ORDER BY t.recorded_at DESC
+        `);
+        res.json(result.rows);
+    } catch (error) {
+        console.error('Error fetching LS bank transactions:', error);
+        res.status(500).json({ error: 'Failed to fetch transactions' });
+    }
+});
+
+// Get bank balance (total sales minus total purchases)
+app.get('/api/ls-bank/balance', async (req, res) => {
+    try {
+        const result = await pool.query(`
+            SELECT
+                COALESCE(SUM(CASE WHEN transaction_type = 'sale' THEN amount ELSE 0 END), 0) as total_sales,
+                COALESCE(SUM(CASE WHEN transaction_type = 'purchase' THEN amount ELSE 0 END), 0) as total_purchases,
+                COALESCE(SUM(CASE WHEN transaction_type = 'sale' THEN amount ELSE -amount END), 0) as current_balance
+            FROM ls_bank_transactions
+        `);
+        res.json(result.rows[0]);
+    } catch (error) {
+        console.error('Error fetching LS bank balance:', error);
+        res.status(500).json({ error: 'Failed to fetch balance' });
+    }
+});
+
+// Add a sale transaction
+app.post('/api/ls-bank/sale', async (req, res) => {
+    try {
+        const { item_id, item_name, amount, description, recorded_by, event_id, source } = req.body;
+
+        const result = await pool.query(`
+            INSERT INTO ls_bank_transactions
+            (transaction_type, item_id, item_name, amount, description, recorded_by, event_id, source)
+            VALUES ('sale', $1, $2, $3, $4, $5, $6, $7)
+            RETURNING *
+        `, [item_id, item_name, amount, description, recorded_by, event_id, source || 'manual']);
+
+        res.json({ success: true, transaction: result.rows[0] });
+    } catch (error) {
+        console.error('Error adding sale:', error);
+        res.status(500).json({ error: 'Failed to add sale' });
+    }
+});
+
+// Add a purchase transaction
+app.post('/api/ls-bank/purchase', async (req, res) => {
+    try {
+        const { item_id, item_name, amount, description, recorded_by } = req.body;
+
+        const result = await pool.query(`
+            INSERT INTO ls_bank_transactions
+            (transaction_type, item_id, item_name, amount, description, recorded_by, source)
+            VALUES ('purchase', $1, $2, $3, $4, $5, 'manual')
+            RETURNING *
+        `, [item_id, item_name, amount, description, recorded_by]);
+
+        res.json({ success: true, transaction: result.rows[0] });
+    } catch (error) {
+        console.error('Error adding purchase:', error);
+        res.status(500).json({ error: 'Failed to add purchase' });
+    }
+});
+
+// ============ LS SHOP ENDPOINTS ============
+
+// Get all shop inventory
+app.get('/api/ls-shop/inventory', async (req, res) => {
+    try {
+        const result = await pool.query(`
+            SELECT
+                i.*,
+                u.character_name as added_by_name,
+                e.name as event_name,
+                ic.classification
+            FROM ls_shop_inventory i
+            LEFT JOIN users u ON i.added_by = u.id
+            LEFT JOIN events e ON i.event_id = e.id
+            LEFT JOIN item_classifications ic ON i.item_id = ic.item_id
+            WHERE i.quantity > 0
+            ORDER BY i.added_at DESC
+        `);
+        res.json(result.rows);
+    } catch (error) {
+        console.error('Error fetching LS shop inventory:', error);
+        res.status(500).json({ error: 'Failed to fetch inventory' });
+    }
+});
+
+// Add item to shop
+app.post('/api/ls-shop/add', async (req, res) => {
+    try {
+        const { item_id, item_name, quantity, added_by, event_id, source, notes } = req.body;
+
+        // Check if item already exists in shop
+        const existing = await pool.query(
+            'SELECT * FROM ls_shop_inventory WHERE item_id = $1 AND quantity > 0',
+            [item_id]
+        );
+
+        let result;
+        if (existing.rows.length > 0) {
+            // Update existing quantity
+            result = await pool.query(`
+                UPDATE ls_shop_inventory
+                SET quantity = quantity + $1
+                WHERE item_id = $2
+                RETURNING *
+            `, [quantity || 1, item_id]);
+        } else {
+            // Insert new item
+            result = await pool.query(`
+                INSERT INTO ls_shop_inventory
+                (item_id, item_name, quantity, added_by, event_id, source, notes)
+                VALUES ($1, $2, $3, $4, $5, $6, $7)
+                RETURNING *
+            `, [item_id, item_name, quantity || 1, added_by, event_id, source || 'manual', notes]);
+        }
+
+        res.json({ success: true, item: result.rows[0] });
+    } catch (error) {
+        console.error('Error adding item to shop:', error);
+        res.status(500).json({ error: 'Failed to add item to shop' });
+    }
+});
+
+// Retrieve item from shop
+app.post('/api/ls-shop/retrieve', async (req, res) => {
+    try {
+        const {
+            shop_item_id,
+            item_id,
+            item_name,
+            quantity,
+            retrieved_by,
+            recipient_user_id,
+            recipient_name,
+            value_type,
+            value_amount,
+            notes
+        } = req.body;
+
+        const client = await pool.connect();
+        try {
+            await client.query('BEGIN');
+
+            // Decrease inventory quantity
+            await client.query(`
+                UPDATE ls_shop_inventory
+                SET quantity = quantity - $1
+                WHERE shop_item_id = $2
+            `, [quantity, shop_item_id]);
+
+            // Record retrieval transaction
+            const transResult = await client.query(`
+                INSERT INTO ls_shop_transactions
+                (shop_item_id, item_id, item_name, quantity_retrieved, retrieved_by,
+                 recipient_user_id, recipient_name, value_type, value_amount, notes)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+                RETURNING *
+            `, [shop_item_id, item_id, item_name, quantity, retrieved_by,
+                recipient_user_id, recipient_name, value_type, value_amount, notes]);
+
+            // If sold for gil, add to bank as sale
+            if (value_type === 'gil') {
+                await client.query(`
+                    INSERT INTO ls_bank_transactions
+                    (transaction_type, item_id, item_name, amount, description, recorded_by, source)
+                    VALUES ('sale', $1, $2, $3, $4, $5, 'shop_retrieval')
+                `, [item_id, item_name, value_amount,
+                    `Sold from LS Shop to ${recipient_name || 'LS Member'}`,
+                    retrieved_by]);
+            }
+
+            await client.query('COMMIT');
+            res.json({ success: true, transaction: transResult.rows[0] });
+        } catch (error) {
+            await client.query('ROLLBACK');
+            throw error;
+        } finally {
+            client.release();
+        }
+    } catch (error) {
+        console.error('Error retrieving item from shop:', error);
+        res.status(500).json({ error: 'Failed to retrieve item' });
+    }
+});
+
+// Get shop transaction history
+app.get('/api/ls-shop/transactions', async (req, res) => {
+    try {
+        const result = await pool.query(`
+            SELECT
+                t.*,
+                u1.character_name as retrieved_by_name,
+                u2.character_name as recipient_user_name
+            FROM ls_shop_transactions t
+            LEFT JOIN users u1 ON t.retrieved_by = u1.id
+            LEFT JOIN users u2 ON t.recipient_user_id = u2.id
+            ORDER BY t.retrieved_at DESC
+        `);
+        res.json(result.rows);
+    } catch (error) {
+        console.error('Error fetching shop transactions:', error);
+        res.status(500).json({ error: 'Failed to fetch transactions' });
     }
 });
 
