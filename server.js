@@ -339,12 +339,15 @@ app.put('/api/market-rates/:itemId', async (req, res) => {
         const { itemId } = req.params;
         const { classification, points_required, market_rate } = req.body;
 
+        console.log(`Updating item ${itemId}: classification=${classification}, points=${points_required}, rate=${market_rate}`);
+
         // Check if item exists in item_classifications
         const checkQuery = `SELECT item_id FROM item_classifications WHERE item_id = $1`;
         const checkResult = await pool.query(checkQuery, [itemId]);
 
         if (checkResult.rows.length > 0) {
             // Update existing
+            console.log(`Updating existing item ${itemId}`);
             await pool.query(
                 `UPDATE item_classifications
                  SET classification = $2, points_required = $3, market_rate = $4
@@ -353,6 +356,7 @@ app.put('/api/market-rates/:itemId', async (req, res) => {
             );
         } else {
             // Insert new - need to get item name first
+            console.log(`Inserting new item ${itemId}`);
             const itemNameQuery = `
                 SELECT COALESCE(ie.name, iw.name, ib.name) as item_name
                 FROM (SELECT $1::integer as itemid) i
@@ -362,6 +366,7 @@ app.put('/api/market-rates/:itemId', async (req, res) => {
             `;
             const itemNameResult = await pool.query(itemNameQuery, [itemId]);
             const itemName = itemNameResult.rows[0]?.item_name || 'Unknown Item';
+            console.log(`Item name for ${itemId}: ${itemName}`);
 
             await pool.query(
                 `INSERT INTO item_classifications (item_id, item_name, classification, points_required, market_rate)
@@ -370,10 +375,12 @@ app.put('/api/market-rates/:itemId', async (req, res) => {
             );
         }
 
+        console.log(`Successfully updated item ${itemId}`);
         res.json({ success: true });
     } catch (error) {
         console.error('Error updating market rates:', error);
-        res.status(500).json({ error: 'Failed to update market rates' });
+        console.error('Error details:', error.stack);
+        res.status(500).json({ error: 'Failed to update market rates', details: error.message });
     }
 });
 
