@@ -314,6 +314,8 @@ app.get('/api/market-rates', async (req, res) => {
                 ic.points_required,
                 ic.market_rate,
                 ic.estimated_value,
+                ic.convertible,
+                ic.converts_to_item_name,
                 COALESCE(m.mob_name, 'Unknown Boss') as mob_name
             FROM mob_droplist md
             LEFT JOIN item_equipment ie ON md.itemId = ie.itemid
@@ -396,7 +398,9 @@ app.get('/api/bosses/:bossId/planned-drops', async (req, res) => {
                 ped.*,
                 u.character_name as assigned_character_name,
                 ic.points_required,
-                ic.market_rate
+                ic.market_rate,
+                ic.convertible,
+                ic.converts_to_item_name
             FROM planned_event_drops ped
             LEFT JOIN users u ON ped.won_by = u.id
             LEFT JOIN item_classifications ic ON ped.item_id = ic.item_id
@@ -456,7 +460,9 @@ app.get('/api/mob-droplist/:mobDropId/all-drops', async (req, res) => {
                 ic.classification,
                 ic.estimated_value,
                 ic.points_required,
-                ic.market_rate
+                ic.market_rate,
+                ic.convertible,
+                ic.converts_to_item_name
             FROM mob_droplist md
             LEFT JOIN item_equipment ie ON md.itemId = ie.itemid
             LEFT JOIN item_weapon iw ON md.itemId = iw.itemid
