@@ -1995,6 +1995,44 @@ app.get('/api/ls-shop/transactions', async (req, res) => {
     }
 });
 
+// Populate Pop Items from database
+app.post('/api/admin/populate-pop-items', async (req, res) => {
+    try {
+        const query = `
+            INSERT INTO item_classifications (item_id, item_name, classification)
+            SELECT DISTINCT
+                md.itemId as item_id,
+                COALESCE(ie.name, iw.name, ib.name, 'Unknown Item') as item_name,
+                'Pop Item' as classification
+            FROM mob_droplist md
+            LEFT JOIN item_equipment ie ON md.itemId = ie.itemid
+            LEFT JOIN item_weapon iw ON md.itemId = iw.itemid
+            LEFT JOIN item_basic ib ON md.itemId = ib.itemid
+            WHERE
+                (
+                    LOWER(COALESCE(ie.name, iw.name, ib.name, '')) LIKE '%gem%'
+                    OR LOWER(COALESCE(ie.name, iw.name, ib.name, '')) LIKE '%orb%'
+                    OR LOWER(COALESCE(ie.name, iw.name, ib.name, '')) LIKE '%seal%'
+                    OR LOWER(COALESCE(ie.name, iw.name, ib.name, '')) LIKE '%testimony%'
+                    OR LOWER(COALESCE(ie.name, iw.name, ib.name, '')) LIKE '%charm%'
+                    OR LOWER(COALESCE(ie.name, iw.name, ib.name, '')) LIKE '%cell%'
+                )
+                AND md.itemId IS NOT NULL
+                AND COALESCE(ie.name, iw.name, ib.name, '') != ''
+            ON CONFLICT (item_id) DO UPDATE
+            SET classification = 'Pop Item'
+            WHERE item_classifications.classification != 'Marketable'
+              AND item_classifications.classification != 'Money Item'
+        `;
+
+        const result = await pool.query(query);
+        res.json({ success: true, message: 'Pop items populated successfully', rowCount: result.rowCount });
+    } catch (error) {
+        console.error('Error populating pop items:', error);
+        res.status(500).json({ error: 'Failed to populate pop items' });
+    }
+});
+
 // Health check for Railway
 app.get('/health', (req, res) => {
     res.status(200).json({ status: 'healthy' });
