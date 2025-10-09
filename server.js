@@ -1693,9 +1693,11 @@ app.get('/api/ls-bank/transactions', async (req, res) => {
             SELECT
                 t.*,
                 u.character_name as recorded_by_name,
+                u2.character_name as owner_name,
                 e.name as event_name
             FROM ls_bank_transactions t
             LEFT JOIN users u ON t.recorded_by = u.id
+            LEFT JOIN users u2 ON t.owner_user_id = u2.id
             LEFT JOIN events e ON t.event_id = e.id
             ORDER BY t.recorded_at DESC
         `);
@@ -1706,14 +1708,17 @@ app.get('/api/ls-bank/transactions', async (req, res) => {
     }
 });
 
-// Get bank balance (total sales minus total purchases)
+// Get bank balance (total sales minus total purchases, excluding on-hold)
 app.get('/api/ls-bank/balance', async (req, res) => {
     try {
         const result = await pool.query(`
             SELECT
-                COALESCE(SUM(CASE WHEN transaction_type = 'sale' THEN amount ELSE 0 END), 0) as total_sales,
-                COALESCE(SUM(CASE WHEN transaction_type = 'purchase' THEN amount ELSE 0 END), 0) as total_purchases,
-                COALESCE(SUM(CASE WHEN transaction_type = 'sale' THEN amount ELSE -amount END), 0) as current_balance
+                COALESCE(SUM(CASE WHEN transaction_type = 'sale' AND status = 'completed' THEN amount ELSE 0 END), 0) as total_sales,
+                COALESCE(SUM(CASE WHEN transaction_type = 'purchase' AND status = 'completed' THEN amount ELSE 0 END), 0) as total_purchases,
+                COALESCE(SUM(CASE WHEN transaction_type = 'sale' AND status = 'completed' THEN amount
+                                  WHEN transaction_type = 'purchase' AND status = 'completed' THEN -amount
+                                  ELSE 0 END), 0) as current_balance,
+                COUNT(CASE WHEN status = 'on_hold' THEN 1 END) as on_hold_count
             FROM ls_bank_transactions
         `);
         res.json(result.rows[0]);
@@ -1749,8 +1754,8 @@ app.post('/api/ls-bank/purchase', async (req, res) => {
 
         const result = await pool.query(`
             INSERT INTO ls_bank_transactions
-            (transaction_type, item_id, item_name, amount, description, recorded_by, source)
-            VALUES ('purchase', $1, $2, $3, $4, $5, 'manual')
+            (transaction_type, item_id, item_name, amount, description, recorded_by, source, status)
+            VALUES ('purchase', $1, $2, $3, $4, $5, 'manual', 'completed')
             RETURNING *
         `, [item_id, item_name, amount, description, recorded_by]);
 
@@ -1758,6 +1763,69 @@ app.post('/api/ls-bank/purchase', async (req, res) => {
     } catch (error) {
         console.error('Error adding purchase:', error);
         res.status(500).json({ error: 'Failed to add purchase' });
+    }
+});
+
+// Store Money Item (on-hold status)
+app.post('/api/ls-bank/store-money-item', async (req, res) => {
+    try {
+        const { item_id, item_name, owner_user_id, recorded_by, event_id, boss_name, source } = req.body;
+
+        const result = await pool.query(`
+            INSERT INTO ls_bank_transactions
+            (transaction_type, item_id, item_name, amount, owner_user_id, recorded_by,
+             event_id, boss_name, source, status, description)
+            VALUES ('sale', $1, $2, 0, $3, $4, $5, $6, $7, 'on_hold', $8)
+            RETURNING *
+        `, [item_id, item_name, owner_user_id, recorded_by, event_id, boss_name,
+            source || 'manual', `Money item stored for ${owner_user_id ? 'LS member' : 'future sale'}`]);
+
+        res.json({ success: true, transaction: result.rows[0] });
+    } catch (error) {
+        console.error('Error storing money item:', error);
+        res.status(500).json({ error: 'Failed to store money item' });
+    }
+});
+
+// Get on-hold money items
+app.get('/api/ls-bank/on-hold', async (req, res) => {
+    try {
+        const result = await pool.query(`
+            SELECT
+                t.*,
+                u.character_name as owner_name,
+                u2.character_name as recorded_by_name,
+                e.name as event_name
+            FROM ls_bank_transactions t
+            LEFT JOIN users u ON t.owner_user_id = u.id
+            LEFT JOIN users u2 ON t.recorded_by = u2.id
+            LEFT JOIN events e ON t.event_id = e.id
+            WHERE t.status = 'on_hold'
+            ORDER BY t.recorded_at DESC
+        `);
+        res.json(result.rows);
+    } catch (error) {
+        console.error('Error fetching on-hold items:', error);
+        res.status(500).json({ error: 'Failed to fetch on-hold items' });
+    }
+});
+
+// Complete money item sale (change from on-hold to completed)
+app.post('/api/ls-bank/complete-money-item-sale', async (req, res) => {
+    try {
+        const { transaction_id, amount } = req.body;
+
+        const result = await pool.query(`
+            UPDATE ls_bank_transactions
+            SET status = 'completed', amount = $1
+            WHERE transaction_id = $2
+            RETURNING *
+        `, [amount, transaction_id]);
+
+        res.json({ success: true, transaction: result.rows[0] });
+    } catch (error) {
+        console.error('Error completing money item sale:', error);
+        res.status(500).json({ error: 'Failed to complete sale' });
     }
 });
 
