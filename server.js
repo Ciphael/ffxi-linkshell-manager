@@ -307,26 +307,22 @@ app.delete('/api/bosses/:bossId', async (req, res) => {
 app.get('/api/market-rates', async (req, res) => {
     try {
         const query = `
-            SELECT DISTINCT
+            SELECT DISTINCT ON (md.itemId, m.mob_name)
                 md.itemId as item_id,
                 COALESCE(ie.name, iw.name, ib.name, 'Unknown Item') as item_name,
                 ic.classification,
                 ic.points_required,
                 ic.market_rate,
                 ic.estimated_value,
-                mn.name as mob_name,
-                mn.groupid as mob_family
+                COALESCE(m.mob_name, 'Unknown Boss') as mob_name
             FROM mob_droplist md
             LEFT JOIN item_equipment ie ON md.itemId = ie.itemid
             LEFT JOIN item_weapon iw ON md.itemId = iw.itemid
             LEFT JOIN item_basic ib ON md.itemId = ib.itemid
             LEFT JOIN item_classifications ic ON md.itemId = ic.item_id
-            LEFT JOIN mob_groups mg ON md.dropId = mg.dropid
-            LEFT JOIN mob_spawn_points msp ON mg.groupid = msp.groupid
-            LEFT JOIN mob_pools mp ON msp.mobid = mp.poolid
-            LEFT JOIN mob_names mn ON mp.name = mn.name
-            WHERE md.dropType IN ('NORMAL', 'STEAL')
-            ORDER BY mn.name, COALESCE(ie.name, iw.name, ib.name)
+            LEFT JOIN mobs m ON md.dropId = m.dropid
+            WHERE md.dropType IN (0, 4) AND m.mob_name IS NOT NULL
+            ORDER BY m.mob_name, md.itemId, COALESCE(ie.name, iw.name, ib.name)
         `;
 
         const result = await pool.query(query);
