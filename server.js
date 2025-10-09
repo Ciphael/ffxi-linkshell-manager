@@ -303,20 +303,30 @@ app.delete('/api/bosses/:bossId', async (req, res) => {
 
 // ============ MARKET RATES MANAGEMENT ============
 
-// Get all marketable items with their rates
+// Get all items from all bosses with their rates and boss info
 app.get('/api/market-rates', async (req, res) => {
     try {
         const query = `
-            SELECT
-                ic.item_id,
-                ic.item_name,
+            SELECT DISTINCT
+                md.itemId as item_id,
+                COALESCE(ie.name, iw.name, ib.name, 'Unknown Item') as item_name,
                 ic.classification,
                 ic.points_required,
                 ic.market_rate,
-                ic.estimated_value
-            FROM item_classifications ic
-            WHERE ic.classification = 'Marketable'
-            ORDER BY ic.item_name
+                ic.estimated_value,
+                mn.name as mob_name,
+                mn.groupid as mob_family
+            FROM mob_droplist md
+            LEFT JOIN item_equipment ie ON md.itemId = ie.itemid
+            LEFT JOIN item_weapon iw ON md.itemId = iw.itemid
+            LEFT JOIN item_basic ib ON md.itemId = ib.itemid
+            LEFT JOIN item_classifications ic ON md.itemId = ic.item_id
+            LEFT JOIN mob_groups mg ON md.dropId = mg.dropid
+            LEFT JOIN mob_spawn_points msp ON mg.groupid = msp.groupid
+            LEFT JOIN mob_pools mp ON msp.mobid = mp.poolid
+            LEFT JOIN mob_names mn ON mp.name = mn.name
+            WHERE md.dropType IN ('NORMAL', 'STEAL')
+            ORDER BY mn.name, COALESCE(ie.name, iw.name, ib.name)
         `;
 
         const result = await pool.query(query);
