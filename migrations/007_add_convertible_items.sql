@@ -42,6 +42,11 @@ WITH abjuration_mappings AS (
     UNION ALL SELECT 'wyrmal_abjuration_hands', 'crimson_finger_gauntlets', 'Crimson Finger Gauntlets'
     UNION ALL SELECT 'wyrmal_abjuration_legs', 'crimson_cuisses', 'Crimson Cuisses'
     UNION ALL SELECT 'wyrmal_abjuration_feet', 'crimson_greaves', 'Crimson Greaves'
+    UNION ALL SELECT 'martial_abjuration_head', 'koenig_schaller', 'Koenig Schaller'
+    UNION ALL SELECT 'martial_abjuration_body', 'koenig_cuirass', 'Koenig Cuirass'
+    UNION ALL SELECT 'martial_abjuration_hands', 'koenig_handschuhs', 'Koenig Handschuhs'
+    UNION ALL SELECT 'martial_abjuration_legs', 'koenig_diechlings', 'Koenig Diechlings'
+    UNION ALL SELECT 'martial_abjuration_feet', 'koenig_schuhs', 'Koenig Schuhs'
 )
 INSERT INTO item_classifications (item_id, item_name, classification, convertible, converts_to_item_id, converts_to_item_name, points_required, market_rate)
 SELECT
