@@ -683,13 +683,14 @@ app.post('/api/bosses/:bossId/confirm-drops', async (req, res) => {
                 await pool.query(
                     `INSERT INTO ls_bank_transactions (
                         transaction_type, item_id, item_name, amount, description,
-                        event_id, source, status, transaction_id
-                    ) VALUES ('sale', $1, $2, $3, $4, $5, 'boss_drop', 'completed', $6)`,
+                        recorded_by, event_id, source, status, transaction_id
+                    ) VALUES ('sale', $1, $2, $3, $4, $5, $6, 'boss_drop', 'completed', $7)`,
                     [
                         drop.item_id,
                         drop.item_name,
                         drop.sell_value,
                         `Sold ${drop.item_name} to ${drop.external_buyer} (${mob_name})`,
+                        drop.won_by || null,
                         event_id,
                         transactionId
                     ]
