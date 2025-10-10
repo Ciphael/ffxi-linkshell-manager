@@ -1707,12 +1707,10 @@ app.get('/api/ls-bank/transactions', async (req, res) => {
             SELECT
                 t.*,
                 u.character_name as recorded_by_name,
-                u2.character_name as owner_name,
-                e.name as event_name
+                u2.character_name as owner_name
             FROM ls_bank_transactions t
             LEFT JOIN users u ON t.recorded_by = u.id
             LEFT JOIN users u2 ON t.owner_user_id = u2.id
-            LEFT JOIN events e ON t.event_id = e.id
             ORDER BY t.recorded_at DESC
         `);
         res.json(result.rows);
