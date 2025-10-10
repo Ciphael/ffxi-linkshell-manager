@@ -82,26 +82,61 @@ app.get('/api/test', async (req, res) => {
 
 // ============ HELPER FUNCTIONS ============
 
-// Helper: Generate transaction ID in format EV[YYYYMMDD][BOSSNAME6][##]
-// Example: EV20251010BYAKKO01 (18 characters)
-function generateTransactionId(eventDate, bossName, bossNumber) {
-    // Format: EV + YYYYMMDD + 6-char boss name + 2-digit number
+// Helper: Generate transaction ID in format YYYYMMDD[E/M][AA][BB]NNNNNNN
+// Example: 20251010ESKBY0000001 (20 characters)
+// Date(8) + Type(1) + Area(2) + Boss(2) + Autonumber(7)
+async function generateTransactionId(eventDate, eventType, mobName) {
+    // Format date: YYYYMMDD
     const dateObj = new Date(eventDate);
     const year = dateObj.getFullYear();
     const month = String(dateObj.getMonth() + 1).padStart(2, '0');
     const day = String(dateObj.getDate()).padStart(2, '0');
     const dateStr = `${year}${month}${day}`;
 
-    // Normalize boss name: uppercase, remove spaces, truncate/pad to 6 chars
-    const normalizedBoss = bossName
+    // Type code: E for event, M for manual
+    const typeCode = 'E';
+
+    // Area code mapping
+    const areaCodeMap = {
+        'Sky': 'SK',
+        'Sea': 'SE',
+        'Dynamis': 'DY',
+        'Limbus': 'LI',
+        'HENM': 'HE'
+    };
+    const areaCode = areaCodeMap[eventType] || 'XX';
+
+    // Boss code: First 2 chars of boss name, uppercase, alphanumeric only
+    const bossCode = mobName
         .toUpperCase()
-        .replace(/[^A-Z0-9]/g, '') // Remove special chars and spaces
-        .substring(0, 6)
-        .padEnd(6, 'X'); // Pad with X if shorter than 6 chars
+        .replace(/[^A-Z0-9]/g, '')
+        .substring(0, 2)
+        .padEnd(2, 'X');
 
-    const bossNum = String(bossNumber).padStart(2, '0');
+    // Build prefix for querying existing transaction IDs
+    const prefix = `${dateStr}${typeCode}${areaCode}`;
 
-    return `EV${dateStr}${normalizedBoss}${bossNum}`;
+    // Query for the highest autonumber with this prefix
+    const result = await pool.query(
+        `SELECT transaction_id FROM planned_event_drops
+         WHERE transaction_id LIKE $1 || '%'
+         ORDER BY transaction_id DESC
+         LIMIT 1`,
+        [prefix]
+    );
+
+    let autonumber = 1;
+    if (result.rows.length > 0) {
+        // Extract the last 7 digits and increment
+        const lastId = result.rows[0].transaction_id;
+        const lastNumber = parseInt(lastId.substring(13)); // Position 13-19 is the autonumber
+        autonumber = lastNumber + 1;
+    }
+
+    // Format autonumber as 7 digits
+    const autonumberStr = String(autonumber).padStart(7, '0');
+
+    return `${dateStr}${typeCode}${areaCode}${bossCode}${autonumberStr}`;
 }
 
 // Helper: Create planned drops for a boss based on mob_droplist and item_classifications
@@ -556,7 +591,7 @@ app.post('/api/bosses/:bossId/confirm-drops', async (req, res) => {
 
         // Get event info, date, and boss details for this boss
         const bossInfo = await pool.query(
-            `SELECT eb.event_id, eb.mob_dropid, eb.mob_name, e.event_date
+            `SELECT eb.event_id, eb.mob_dropid, eb.mob_name, e.event_date, e.event_type
              FROM event_bosses eb
              JOIN events e ON eb.event_id = e.id
              WHERE eb.id = $1`,
@@ -567,7 +602,7 @@ app.post('/api/bosses/:bossId/confirm-drops', async (req, res) => {
             throw new Error('Boss not found');
         }
 
-        const { event_id, mob_dropid, mob_name, event_date } = bossInfo.rows[0];
+        const { event_id, mob_dropid, mob_name, event_date, event_type } = bossInfo.rows[0];
 
         // Count how many bosses with the same name have already been killed in this event
         const bossCountResult = await pool.query(
@@ -578,8 +613,8 @@ app.post('/api/bosses/:bossId/confirm-drops', async (req, res) => {
         );
         const bossNumber = parseInt(bossCountResult.rows[0].boss_number);
 
-        // Generate transaction ID: EV[YYYYMMDD][BOSSNAME6][##]
-        const transactionId = generateTransactionId(event_date, mob_name, bossNumber);
+        // Generate transaction ID: YYYYMMDD[E/M][AA][BB]NNNNNNN (20 chars)
+        const transactionId = await generateTransactionId(event_date, event_type, mob_name);
 
         // Update or insert confirmed drops
         for (const drop of confirmedDrops) {
