@@ -449,6 +449,17 @@ app.put('/api/planned-drops/:dropId', async (req, res) => {
         const { dropId } = req.params;
         const { allocation_type, won_by, external_buyer, expected_value } = req.body;
 
+        console.log(`Updating planned drop ${dropId}:`, {
+            allocation_type,
+            won_by,
+            external_buyer,
+            expected_value
+        });
+
+        // Convert empty strings to null
+        const wonByValue = won_by === '' || won_by === 'null' ? null : (won_by ? parseInt(won_by) : null);
+        const expectedValueNum = expected_value ? parseInt(expected_value) : 0;
+
         const query = `
             UPDATE planned_event_drops
             SET allocation_type = $2,
@@ -459,16 +470,25 @@ app.put('/api/planned-drops/:dropId', async (req, res) => {
             RETURNING *
         `;
 
-        const result = await pool.query(query, [dropId, allocation_type, won_by, external_buyer, expected_value]);
+        const result = await pool.query(query, [
+            dropId,
+            allocation_type || null,
+            wonByValue,
+            external_buyer || null,
+            expectedValueNum
+        ]);
 
         if (result.rows.length === 0) {
             return res.status(400).json({ error: 'Cannot update committed drops or drop not found' });
         }
 
+        console.log(`Successfully updated planned drop ${dropId}`);
         res.json({ success: true, drop: result.rows[0] });
     } catch (error) {
-        console.error('Error updating planned drop:', error);
-        res.status(500).json({ error: 'Failed to update planned drop' });
+        console.error(`Error updating planned drop ${dropId}:`, error);
+        console.error('Error details:', error.message);
+        console.error('Error stack:', error.stack);
+        res.status(500).json({ error: 'Failed to update planned drop', details: error.message });
     }
 });
 
