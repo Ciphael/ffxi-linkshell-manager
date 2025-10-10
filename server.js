@@ -1936,6 +1936,61 @@ app.post('/api/ls-bank/complete-money-item-sale', async (req, res) => {
     }
 });
 
+// Record item sold from LS Bank (Pop Items/LS Store items)
+app.post('/api/ls-bank/items/:shopItemId/sold', async (req, res) => {
+    try {
+        const { shopItemId } = req.params;
+        const { amount, notes, recorded_by } = req.body;
+
+        const client = await pool.connect();
+        try {
+            await client.query('BEGIN');
+
+            // Get item details before updating
+            const itemResult = await client.query(
+                'SELECT * FROM ls_shop_inventory WHERE shop_item_id = $1',
+                [shopItemId]
+            );
+
+            if (itemResult.rows.length === 0) {
+                throw new Error('Item not found');
+            }
+
+            const item = itemResult.rows[0];
+
+            // Update item status to 'sold'
+            await client.query(
+                `UPDATE ls_shop_inventory
+                 SET status = 'sold', quantity = 0
+                 WHERE shop_item_id = $1`,
+                [shopItemId]
+            );
+
+            // Create bank transaction for the sale
+            await client.query(
+                `INSERT INTO ls_bank_transactions
+                 (transaction_type, item_id, item_name, amount, description, recorded_by,
+                  event_id, source, status, transaction_id)
+                 VALUES ('sale', $1, $2, $3, $4, $5, $6, 'ls_bank_item', 'completed', $7)`,
+                [item.item_id, item.item_name, amount,
+                 notes || `Sale of ${item.item_name} from LS Bank`,
+                 recorded_by, item.event_id, item.transaction_id]
+            );
+
+            await client.query('COMMIT');
+            res.json({ success: true, message: 'Item sale recorded successfully' });
+        } catch (error) {
+            await client.query('ROLLBACK');
+            throw error;
+        } finally {
+            client.release();
+        }
+    } catch (error) {
+        console.error('Error recording item sale:', error);
+        res.status(500).json({ error: error.message || 'Failed to record item sale' });
+    }
+});
+
 // ============ LS SHOP ENDPOINTS ============
 
 // Get all shop inventory
