@@ -93,6 +93,8 @@ async function createPlannedDropsForBoss(eventId, eventBossId, mobDropId) {
                 COALESCE(ie.name, iw.name, ib.name, 'Unknown Item') as item_name,
                 md.itemRate,
                 md.dropType,
+                md.groupId,
+                md.groupRate,
                 ic.classification,
                 ic.estimated_value
             FROM mob_droplist md
@@ -112,8 +114,8 @@ async function createPlannedDropsForBoss(eventId, eventBossId, mobDropId) {
             await pool.query(
                 `INSERT INTO planned_event_drops (
                     event_id, event_boss_id, item_id, item_name,
-                    drop_rate, classification, expected_value
-                ) VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+                    drop_rate, classification, expected_value, groupid, grouprate
+                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
                 [
                     eventId,
                     eventBossId,
@@ -121,7 +123,9 @@ async function createPlannedDropsForBoss(eventId, eventBossId, mobDropId) {
                     drop.item_name,
                     drop.itemrate > 100 ? drop.itemrate / 10 : drop.itemrate,
                     drop.classification || 'Marketable',
-                    drop.estimated_value || 0
+                    drop.estimated_value || 0,
+                    drop.groupid || 0,
+                    drop.grouprate || 1000
                 ]
             );
         }
@@ -208,7 +212,7 @@ app.post('/api/events/:eventId/bosses', async (req, res) => {
                 `INSERT INTO event_bosses (event_id, mob_dropid, mob_name, killed, quantity, boss_order)
                  VALUES ($1, $2, $3, false, 1, $4)
                  RETURNING *`,
-                [eventId, mob_dropid, `${mob_name} #${i + 1}`, bossOrder + i]
+                [eventId, mob_dropid, mob_name, bossOrder + i]
             );
 
             const boss = result.rows[0];
