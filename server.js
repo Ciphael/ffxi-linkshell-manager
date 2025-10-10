@@ -2010,6 +2010,165 @@ app.post('/api/ls-bank/purchase', async (req, res) => {
     }
 });
 
+// Manually add item to LS Bank
+app.post('/api/ls-bank/add-item', async (req, res) => {
+    try {
+        const { item_id, item_name, owner_user_id, description, recorded_by } = req.body;
+
+        const client = await pool.connect();
+        try {
+            await client.query('BEGIN');
+
+            // Generate transaction ID for manual addition
+            const today = new Date();
+            const year = today.getFullYear();
+            const month = String(today.getMonth() + 1).padStart(2, '0');
+            const day = String(today.getDate()).padStart(2, '0');
+            const dateStr = `${year}${month}${day}`;
+
+            // Query for autonumber
+            const result = await client.query(
+                `SELECT transaction_id FROM ls_bank_transactions
+                 WHERE transaction_id LIKE $1 || '%'
+                 ORDER BY transaction_id DESC
+                 LIMIT 1`,
+                [`A${dateStr}M`]
+            );
+
+            let autonumber = 1;
+            if (result.rows.length > 0) {
+                const lastId = result.rows[0].transaction_id;
+                const lastNumber = parseInt(lastId.substring(lastId.length - 6));
+                autonumber = lastNumber + 1;
+            }
+
+            const transactionId = `A${dateStr}MXXXXXX${String(autonumber).padStart(6, '0')}`;
+
+            // Insert into ls_shop_inventory
+            const insertResult = await client.query(
+                `INSERT INTO ls_shop_inventory (
+                    item_id, item_name, quantity, added_by, owner_user_id,
+                    source, source_details, transaction_id, status
+                ) VALUES ($1, $2, 1, $3, $4, 'manual', $5, $6, 'pending_sale')
+                RETURNING *`,
+                [item_id, item_name, recorded_by, owner_user_id,
+                 description || 'Manually added to LS Bank', transactionId]
+            );
+
+            // Create corresponding transaction in ls_bank_transactions
+            await client.query(
+                `INSERT INTO ls_bank_transactions (
+                    transaction_type, item_id, item_name, amount, description,
+                    recorded_by, owner_user_id, source, status, transaction_id
+                ) VALUES ('add', $1, $2, 0, $3, $4, $5, 'manual', 'pending_sale', $6)`,
+                [
+                    item_id,
+                    item_name,
+                    description || `Manually added ${item_name} to LS Bank`,
+                    recorded_by,
+                    owner_user_id,
+                    transactionId
+                ]
+            );
+
+            await client.query('COMMIT');
+            res.json({ success: true, item: insertResult.rows[0] });
+        } catch (error) {
+            await client.query('ROLLBACK');
+            throw error;
+        } finally {
+            client.release();
+        }
+    } catch (error) {
+        console.error('Error adding item to LS Bank:', error);
+        res.status(500).json({ error: error.message || 'Failed to add item' });
+    }
+});
+
+// Manually remove item from LS Bank
+app.post('/api/ls-bank/remove-item', async (req, res) => {
+    try {
+        const { shop_item_id, reason, recorded_by } = req.body;
+
+        const client = await pool.connect();
+        try {
+            await client.query('BEGIN');
+
+            // Get item details before removing
+            const itemResult = await client.query(
+                'SELECT * FROM ls_shop_inventory WHERE id = $1',
+                [shop_item_id]
+            );
+
+            if (itemResult.rows.length === 0) {
+                throw new Error('Item not found in LS Bank');
+            }
+
+            const item = itemResult.rows[0];
+
+            // Generate transaction ID for manual removal
+            const today = new Date();
+            const year = today.getFullYear();
+            const month = String(today.getMonth() + 1).padStart(2, '0');
+            const day = String(today.getDate()).padStart(2, '0');
+            const dateStr = `${year}${month}${day}`;
+
+            // Query for autonumber
+            const result = await client.query(
+                `SELECT transaction_id FROM ls_bank_transactions
+                 WHERE transaction_id LIKE $1 || '%'
+                 ORDER BY transaction_id DESC
+                 LIMIT 1`,
+                [`R${dateStr}M`]
+            );
+
+            let autonumber = 1;
+            if (result.rows.length > 0) {
+                const lastId = result.rows[0].transaction_id;
+                const lastNumber = parseInt(lastId.substring(lastId.length - 6));
+                autonumber = lastNumber + 1;
+            }
+
+            const transactionId = `R${dateStr}MXXXXXX${String(autonumber).padStart(6, '0')}`;
+
+            // Update item to set quantity to 0 and mark as removed
+            await client.query(
+                `UPDATE ls_shop_inventory
+                 SET quantity = 0, status = 'removed'
+                 WHERE id = $1`,
+                [shop_item_id]
+            );
+
+            // Create removal transaction in ls_bank_transactions
+            await client.query(
+                `INSERT INTO ls_bank_transactions (
+                    transaction_type, item_id, item_name, amount, description,
+                    recorded_by, owner_user_id, source, status, transaction_id
+                ) VALUES ('remove', $1, $2, 0, $3, $4, $5, 'manual', 'completed', $6)`,
+                [
+                    item.item_id,
+                    item.item_name,
+                    `Removed ${item.item_name} from LS Bank. Reason: ${reason}`,
+                    recorded_by,
+                    item.owner_user_id,
+                    transactionId
+                ]
+            );
+
+            await client.query('COMMIT');
+            res.json({ success: true, message: 'Item removed successfully' });
+        } catch (error) {
+            await client.query('ROLLBACK');
+            throw error;
+        } finally {
+            client.release();
+        }
+    } catch (error) {
+        console.error('Error removing item from LS Bank:', error);
+        res.status(500).json({ error: error.message || 'Failed to remove item' });
+    }
+});
+
 // Store Money Item (on-hold status)
 app.post('/api/ls-bank/store-money-item', async (req, res) => {
     try {
