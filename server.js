@@ -449,7 +449,7 @@ app.put('/api/planned-drops/:dropId', async (req, res) => {
         const { dropId } = req.params;
         const { allocation_type, won_by, external_buyer, expected_value } = req.body;
 
-        console.log(`Updating planned drop ${dropId}:`, {
+        console.log(`[PUT /api/planned-drops/${dropId}] Request received:`, {
             allocation_type,
             won_by,
             external_buyer,
@@ -457,8 +457,14 @@ app.put('/api/planned-drops/:dropId', async (req, res) => {
         });
 
         // Convert empty strings to null
-        const wonByValue = won_by === '' || won_by === 'null' ? null : (won_by ? parseInt(won_by) : null);
+        const wonByValue = won_by === '' || won_by === 'null' || won_by === null ? null :
+                          (typeof won_by === 'string' && won_by !== '' ? parseInt(won_by) : won_by);
         const expectedValueNum = expected_value ? parseInt(expected_value) : 0;
+
+        console.log(`[PUT /api/planned-drops/${dropId}] Parsed values:`, {
+            wonByValue,
+            expectedValueNum
+        });
 
         const query = `
             UPDATE planned_event_drops
@@ -479,13 +485,14 @@ app.put('/api/planned-drops/:dropId', async (req, res) => {
         ]);
 
         if (result.rows.length === 0) {
+            console.log(`[PUT /api/planned-drops/${dropId}] No rows updated - drop not found or committed`);
             return res.status(400).json({ error: 'Cannot update committed drops or drop not found' });
         }
 
-        console.log(`Successfully updated planned drop ${dropId}`);
+        console.log(`[PUT /api/planned-drops/${dropId}] Successfully updated`);
         res.json({ success: true, drop: result.rows[0] });
     } catch (error) {
-        console.error(`Error updating planned drop ${dropId}:`, error);
+        console.error(`[PUT /api/planned-drops/${dropId}] ERROR:`, error);
         console.error('Error details:', error.message);
         console.error('Error stack:', error.stack);
         res.status(500).json({ error: 'Failed to update planned drop', details: error.message });
