@@ -780,6 +780,7 @@ app.post('/api/bosses/:bossId/confirm-drops', async (req, res) => {
                 const sourceDetails = `${eventName} - ${mob_name}/${bossNumber}`;
 
                 // Determine status based on classification
+                // Note: itemStatus is for ls_shop_inventory (allows: 'pending_sale', 'sold', 'in_use', 'Event Item')
                 const itemStatus = drop.classification === 'Pop Item' ? 'Event Item' : 'Pending Sale';
 
                 // Insert into ls_shop_inventory
@@ -794,18 +795,18 @@ app.post('/api/bosses/:bossId/confirm-drops', async (req, res) => {
                 );
 
                 // Create corresponding transaction in ls_bank_transactions
+                // Note: ls_bank_transactions.status CHECK allows only ('completed', 'on_hold')
                 await pool.query(
                     `INSERT INTO ls_bank_transactions (
                         transaction_type, item_id, item_name, amount, description,
                         recorded_by, event_id, source, status, transaction_id
-                    ) VALUES ('add', $1, $2, 0, $3, $4, $5, 'boss_drop', $6, $7)`,
+                    ) VALUES ('add', $1, $2, 0, $3, $4, $5, 'boss_drop', 'completed', $6)`,
                     [
                         drop.item_id,
                         drop.item_name,
                         `Added ${drop.item_name} to LS Bank from ${mob_name} (${eventName})`,
                         drop.won_by || null,
                         event_id,
-                        itemStatus,
                         transactionId
                     ]
                 );
@@ -2060,11 +2061,12 @@ app.post('/api/ls-bank/add-item', async (req, res) => {
             );
 
             // Create corresponding transaction in ls_bank_transactions
+            // Note: ls_bank_transactions.status CHECK allows only ('completed', 'on_hold')
             await client.query(
                 `INSERT INTO ls_bank_transactions (
                     transaction_type, item_id, item_name, amount, description,
                     recorded_by, owner_user_id, source, status, transaction_id
-                ) VALUES ('add', $1, $2, 0, $3, $4, $5, 'manual', 'pending_sale', $6)`,
+                ) VALUES ('add', $1, $2, 0, $3, $4, $5, 'manual', 'completed', $6)`,
                 [
                     item_id,
                     item_name,
