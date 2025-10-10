@@ -1751,19 +1751,20 @@ app.post('/api/ls-bank/sale', async (req, res) => {
 // Add a purchase transaction
 app.post('/api/ls-bank/purchase', async (req, res) => {
     try {
-        const { item_id, item_name, amount, description, recorded_by } = req.body;
+        const { item_id, item_name, amount, description, recorded_by, purchaser_id } = req.body;
 
         const result = await pool.query(`
             INSERT INTO ls_bank_transactions
-            (transaction_type, item_id, item_name, amount, description, recorded_by, source, status)
-            VALUES ('purchase', $1, $2, $3, $4, $5, 'manual', 'completed')
+            (transaction_type, item_id, item_name, amount, description, recorded_by, owner_user_id, source, status)
+            VALUES ('purchase', $1, $2, $3, $4, $5, $6, 'manual', 'completed')
             RETURNING *
-        `, [item_id, item_name, amount, description, recorded_by]);
+        `, [item_id, item_name, amount, description, recorded_by, purchaser_id]);
 
         res.json({ success: true, transaction: result.rows[0] });
     } catch (error) {
         console.error('Error adding purchase:', error);
-        res.status(500).json({ error: 'Failed to add purchase' });
+        console.error('Error details:', error.message);
+        res.status(500).json({ error: 'Failed to add purchase', details: error.message });
     }
 });
 
