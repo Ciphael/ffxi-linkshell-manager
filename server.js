@@ -678,6 +678,24 @@ app.post('/api/bosses/:bossId/confirm-drops', async (req, res) => {
                 }
             }
 
+            // Create LS Bank transaction for external buyer sales
+            if (drop.allocation_type === 'external' && drop.external_buyer && drop.sell_value > 0) {
+                await pool.query(
+                    `INSERT INTO ls_bank_transactions (
+                        transaction_type, item_id, item_name, amount, description,
+                        event_id, source, status, transaction_id
+                    ) VALUES ('sale', $1, $2, $3, $4, $5, 'boss_drop', 'completed', $6)`,
+                    [
+                        drop.item_id,
+                        drop.item_name,
+                        drop.sell_value,
+                        `Sold ${drop.item_name} to ${drop.external_buyer} (${mob_name})`,
+                        event_id,
+                        transactionId
+                    ]
+                );
+            }
+
             // Auto-insert Pop Items and LS Store items to LS Bank (ls_shop_inventory)
             if (drop.classification === 'Pop Item' || drop.allocation_type === 'ls_store') {
                 // Get event name for source details
