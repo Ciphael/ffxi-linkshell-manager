@@ -2019,30 +2019,34 @@ app.post('/api/ls-bank/add-item', async (req, res) => {
         try {
             await client.query('BEGIN');
 
-            // Generate transaction ID for manual addition
+            // Generate transaction ID for manual addition (20 chars total)
+            // Format: A[YYYYMMDD]M[XX][XX][000001]
             const today = new Date();
             const year = today.getFullYear();
             const month = String(today.getMonth() + 1).padStart(2, '0');
             const day = String(today.getDate()).padStart(2, '0');
             const dateStr = `${year}${month}${day}`;
 
-            // Query for autonumber
+            const prefix = `A${dateStr}M`;
+
+            // Query for autonumber from planned_event_drops (uses VARCHAR transaction_id)
             const result = await client.query(
-                `SELECT transaction_id FROM ls_bank_transactions
+                `SELECT transaction_id FROM planned_event_drops
                  WHERE transaction_id LIKE $1 || '%'
                  ORDER BY transaction_id DESC
                  LIMIT 1`,
-                [`A${dateStr}M`]
+                [prefix]
             );
 
             let autonumber = 1;
             if (result.rows.length > 0) {
                 const lastId = result.rows[0].transaction_id;
-                const lastNumber = parseInt(lastId.substring(lastId.length - 6));
+                const lastNumber = parseInt(lastId.substring(14)); // Last 6 digits
                 autonumber = lastNumber + 1;
             }
 
-            const transactionId = `A${dateStr}MXXXXXX${String(autonumber).padStart(6, '0')}`;
+            // Format: A[8 digits]M[2 area][2 boss][6 autonumber] = 20 chars
+            const transactionId = `${prefix}XXXX${String(autonumber).padStart(6, '0')}`;
 
             // Insert into ls_shop_inventory
             const insertResult = await client.query(
@@ -2106,30 +2110,34 @@ app.post('/api/ls-bank/remove-item', async (req, res) => {
 
             const item = itemResult.rows[0];
 
-            // Generate transaction ID for manual removal
+            // Generate transaction ID for manual removal (20 chars total)
+            // Format: R[YYYYMMDD]M[XX][XX][000001]
             const today = new Date();
             const year = today.getFullYear();
             const month = String(today.getMonth() + 1).padStart(2, '0');
             const day = String(today.getDate()).padStart(2, '0');
             const dateStr = `${year}${month}${day}`;
 
-            // Query for autonumber
+            const prefix = `R${dateStr}M`;
+
+            // Query for autonumber from planned_event_drops (uses VARCHAR transaction_id)
             const result = await client.query(
-                `SELECT transaction_id FROM ls_bank_transactions
+                `SELECT transaction_id FROM planned_event_drops
                  WHERE transaction_id LIKE $1 || '%'
                  ORDER BY transaction_id DESC
                  LIMIT 1`,
-                [`R${dateStr}M`]
+                [prefix]
             );
 
             let autonumber = 1;
             if (result.rows.length > 0) {
                 const lastId = result.rows[0].transaction_id;
-                const lastNumber = parseInt(lastId.substring(lastId.length - 6));
+                const lastNumber = parseInt(lastId.substring(14)); // Last 6 digits
                 autonumber = lastNumber + 1;
             }
 
-            const transactionId = `R${dateStr}MXXXXXX${String(autonumber).padStart(6, '0')}`;
+            // Format: R[8 digits]M[2 area][2 boss][6 autonumber] = 20 chars
+            const transactionId = `${prefix}XXXX${String(autonumber).padStart(6, '0')}`;
 
             // Update item to set quantity to 0 and mark as removed
             await client.query(
