@@ -767,8 +767,8 @@ app.post('/api/bosses/:bossId/confirm-drops', async (req, res) => {
                 }
             }
 
-            // Auto-insert Pop Items and LS Store items to LS Bank (ls_shop_inventory)
-            if (drop.classification === 'Pop Item' || drop.allocation_type === 'ls_store') {
+            // Auto-insert Pop Items, Money Items, and LS Store items to LS Bank (ls_shop_inventory)
+            if (drop.classification === 'Pop Item' || drop.classification === 'Money Item' || drop.allocation_type === 'ls_store') {
                 // Get event name for source details
                 const eventNameResult = await pool.query(
                     'SELECT event_name FROM events WHERE id = $1',
@@ -779,14 +779,35 @@ app.post('/api/bosses/:bossId/confirm-drops', async (req, res) => {
                 // Format source details: "Event Name - Boss Name/Instance #"
                 const sourceDetails = `${eventName} - ${mob_name}/${bossNumber}`;
 
+                // Determine status based on classification
+                const itemStatus = drop.classification === 'Pop Item' ? 'Event Item' : 'Pending Sale';
+
+                // Insert into ls_shop_inventory
                 await pool.query(
                     `INSERT INTO ls_shop_inventory (
                         item_id, item_name, quantity, added_by, owner_user_id,
                         event_id, source, source_details, transaction_id, status
-                    ) VALUES ($1, $2, 1, $3, $4, $5, 'event', $6, $7, 'pending_sale')
+                    ) VALUES ($1, $2, 1, $3, $4, $5, 'event', $6, $7, $8)
                     ON CONFLICT (item_id, transaction_id)
                     DO UPDATE SET quantity = ls_shop_inventory.quantity + 1`,
-                    [drop.item_id, drop.item_name, drop.won_by, drop.won_by, event_id, sourceDetails, transactionId]
+                    [drop.item_id, drop.item_name, drop.won_by, drop.won_by, event_id, sourceDetails, transactionId, itemStatus]
+                );
+
+                // Create corresponding transaction in ls_bank_transactions
+                await pool.query(
+                    `INSERT INTO ls_bank_transactions (
+                        transaction_type, item_id, item_name, amount, description,
+                        recorded_by, event_id, source, status, transaction_id
+                    ) VALUES ('add', $1, $2, 0, $3, $4, $5, 'boss_drop', $6, $7)`,
+                    [
+                        drop.item_id,
+                        drop.item_name,
+                        `Added ${drop.item_name} to LS Bank from ${mob_name} (${eventName})`,
+                        drop.won_by || null,
+                        event_id,
+                        itemStatus,
+                        transactionId
+                    ]
                 );
             }
         }
