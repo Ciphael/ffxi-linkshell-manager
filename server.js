@@ -680,21 +680,41 @@ app.post('/api/bosses/:bossId/confirm-drops', async (req, res) => {
 
             // Create LS Bank transaction for external buyer sales
             if (drop.allocation_type === 'external' && drop.external_buyer && drop.sell_value > 0) {
-                await pool.query(
-                    `INSERT INTO ls_bank_transactions (
-                        transaction_type, item_id, item_name, amount, description,
-                        recorded_by, event_id, source, status, transaction_id
-                    ) VALUES ('sale', $1, $2, $3, $4, $5, $6, 'boss_drop', 'completed', $7)`,
-                    [
-                        drop.item_id,
-                        drop.item_name,
-                        drop.sell_value,
-                        `Sold ${drop.item_name} to ${drop.external_buyer} (${mob_name})`,
-                        drop.won_by || null,
-                        event_id,
-                        transactionId
-                    ]
-                );
+                // Try to insert with transaction_id, fall back without if column doesn't exist
+                try {
+                    await pool.query(
+                        `INSERT INTO ls_bank_transactions (
+                            transaction_type, item_id, item_name, amount, description,
+                            recorded_by, event_id, source, status, transaction_id
+                        ) VALUES ('sale', $1, $2, $3, $4, $5, $6, 'boss_drop', 'completed', $7)`,
+                        [
+                            drop.item_id,
+                            drop.item_name,
+                            drop.sell_value,
+                            `Sold ${drop.item_name} to ${drop.external_buyer} (${mob_name})`,
+                            drop.won_by || null,
+                            event_id,
+                            transactionId
+                        ]
+                    );
+                } catch (txError) {
+                    // If transaction_id column doesn't exist or has wrong type, insert without it
+                    console.log('Failed to insert with transaction_id, trying without:', txError.message);
+                    await pool.query(
+                        `INSERT INTO ls_bank_transactions (
+                            transaction_type, item_id, item_name, amount, description,
+                            recorded_by, event_id, source, status
+                        ) VALUES ('sale', $1, $2, $3, $4, $5, $6, 'boss_drop', 'completed')`,
+                        [
+                            drop.item_id,
+                            drop.item_name,
+                            drop.sell_value,
+                            `Sold ${drop.item_name} to ${drop.external_buyer} (${mob_name})`,
+                            drop.won_by || null,
+                            event_id
+                        ]
+                    );
+                }
             }
 
             // Auto-insert Pop Items and LS Store items to LS Bank (ls_shop_inventory)
