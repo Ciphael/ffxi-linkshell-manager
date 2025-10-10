@@ -447,18 +447,19 @@ app.get('/api/bosses/:bossId/planned-drops', async (req, res) => {
 app.put('/api/planned-drops/:dropId', async (req, res) => {
     try {
         const { dropId } = req.params;
-        const { allocation_type, won_by, expected_value } = req.body;
+        const { allocation_type, won_by, external_buyer, expected_value } = req.body;
 
         const query = `
             UPDATE planned_event_drops
             SET allocation_type = $2,
                 won_by = $3,
-                expected_value = $4
+                external_buyer = $4,
+                expected_value = $5
             WHERE id = $1 AND committed = FALSE
             RETURNING *
         `;
 
-        const result = await pool.query(query, [dropId, allocation_type, won_by, expected_value]);
+        const result = await pool.query(query, [dropId, allocation_type, won_by, external_buyer, expected_value]);
 
         if (result.rows.length === 0) {
             return res.status(400).json({ error: 'Cannot update committed drops or drop not found' });
