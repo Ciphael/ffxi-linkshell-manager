@@ -82,6 +82,28 @@ app.get('/api/test', async (req, res) => {
 
 // ============ HELPER FUNCTIONS ============
 
+// Helper: Generate transaction ID in format EV[YYYYMMDD][BOSSNAME6][##]
+// Example: EV20251010BYAKKO01 (18 characters)
+function generateTransactionId(eventDate, bossName, bossNumber) {
+    // Format: EV + YYYYMMDD + 6-char boss name + 2-digit number
+    const dateObj = new Date(eventDate);
+    const year = dateObj.getFullYear();
+    const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+    const day = String(dateObj.getDate()).padStart(2, '0');
+    const dateStr = `${year}${month}${day}`;
+
+    // Normalize boss name: uppercase, remove spaces, truncate/pad to 6 chars
+    const normalizedBoss = bossName
+        .toUpperCase()
+        .replace(/[^A-Z0-9]/g, '') // Remove special chars and spaces
+        .substring(0, 6)
+        .padEnd(6, 'X'); // Pad with X if shorter than 6 chars
+
+    const bossNum = String(bossNumber).padStart(2, '0');
+
+    return `EV${dateStr}${normalizedBoss}${bossNum}`;
+}
+
 // Helper: Create planned drops for a boss based on mob_droplist and item_classifications
 async function createPlannedDropsForBoss(eventId, eventBossId, mobDropId) {
     try {
@@ -504,9 +526,12 @@ app.post('/api/bosses/:bossId/confirm-drops', async (req, res) => {
 
         await pool.query('BEGIN');
 
-        // Get event info for this boss
+        // Get event info, date, and boss details for this boss
         const bossInfo = await pool.query(
-            'SELECT event_id, mob_dropid FROM event_bosses WHERE id = $1',
+            `SELECT eb.event_id, eb.mob_dropid, eb.mob_name, e.event_date
+             FROM event_bosses eb
+             JOIN events e ON eb.event_id = e.id
+             WHERE eb.id = $1`,
             [bossId]
         );
 
@@ -514,7 +539,19 @@ app.post('/api/bosses/:bossId/confirm-drops', async (req, res) => {
             throw new Error('Boss not found');
         }
 
-        const { event_id, mob_dropid } = bossInfo.rows[0];
+        const { event_id, mob_dropid, mob_name, event_date } = bossInfo.rows[0];
+
+        // Count how many bosses with the same name have already been killed in this event
+        const bossCountResult = await pool.query(
+            `SELECT COUNT(*) + 1 as boss_number
+             FROM event_bosses
+             WHERE event_id = $1 AND mob_name = $2 AND id <= $3`,
+            [event_id, mob_name, bossId]
+        );
+        const bossNumber = parseInt(bossCountResult.rows[0].boss_number);
+
+        // Generate transaction ID: EV[YYYYMMDD][BOSSNAME6][##]
+        const transactionId = generateTransactionId(event_date, mob_name, bossNumber);
 
         // Update or insert confirmed drops
         for (const drop of confirmedDrops) {
@@ -537,7 +574,8 @@ app.post('/api/bosses/:bossId/confirm-drops', async (req, res) => {
                          winning_bid = $5,
                          external_buyer = $6,
                          sell_value = $7,
-                         ls_fund_category = $8
+                         ls_fund_category = $8,
+                         transaction_id = $9
                      WHERE id = $1 AND event_boss_id = $2`,
                     [
                         existingDrop.rows[0].id,
@@ -547,7 +585,8 @@ app.post('/api/bosses/:bossId/confirm-drops', async (req, res) => {
                         drop.winning_bid || 0,
                         drop.external_buyer || null,
                         drop.sell_value || 0,
-                        drop.ls_fund_category || null
+                        drop.ls_fund_category || null,
+                        transactionId
                     ]
                 );
             } else {
@@ -558,8 +597,8 @@ app.post('/api/bosses/:bossId/confirm-drops', async (req, res) => {
                         confirmed_dropped, committed, actual_dropped_at,
                         allocation_type, won_by, winning_bid,
                         external_buyer, sell_value, ls_fund_category,
-                        classification
-                    ) VALUES ($1, $2, $3, $4, true, true, NOW(), $5, $6, $7, $8, $9, $10, $11)`,
+                        classification, transaction_id
+                    ) VALUES ($1, $2, $3, $4, true, true, NOW(), $5, $6, $7, $8, $9, $10, $11, $12)`,
                     [
                         event_id,
                         bossId,
@@ -571,7 +610,8 @@ app.post('/api/bosses/:bossId/confirm-drops', async (req, res) => {
                         drop.external_buyer || null,
                         drop.sell_value || 0,
                         drop.ls_fund_category || null,
-                        drop.classification || 'Marketable'
+                        drop.classification || 'Marketable',
+                        transactionId
                     ]
                 );
             }
@@ -602,10 +642,10 @@ app.post('/api/bosses/:bossId/confirm-drops', async (req, res) => {
 
                     await pool.query(
                         `INSERT INTO point_transactions (
-                            user_id, category_id, points_change, event_id, description
-                        ) VALUES ($1, $2, $3, $4, $5)`,
+                            user_id, category_id, points_change, event_id, description, transaction_id
+                        ) VALUES ($1, $2, $3, $4, $5, $6)`,
                         [drop.won_by, categoryId, -drop.winning_bid, event_id,
-                         `Won ${drop.item_name} for ${drop.winning_bid} points`]
+                         `Won ${drop.item_name} for ${drop.winning_bid} points`, transactionId]
                     );
                 }
             }
@@ -618,7 +658,7 @@ app.post('/api/bosses/:bossId/confirm-drops', async (req, res) => {
         );
 
         await pool.query('COMMIT');
-        res.json({ success: true, message: 'Drops confirmed successfully' });
+        res.json({ success: true, message: 'Drops confirmed successfully', transactionId });
 
     } catch (error) {
         await pool.query('ROLLBACK');
@@ -1787,16 +1827,16 @@ app.post('/api/ls-bank/purchase', async (req, res) => {
 // Store Money Item (on-hold status)
 app.post('/api/ls-bank/store-money-item', async (req, res) => {
     try {
-        const { item_id, item_name, owner_user_id, recorded_by, event_id, boss_name, source } = req.body;
+        const { item_id, item_name, owner_user_id, recorded_by, event_id, boss_name, source, transaction_id } = req.body;
 
         const result = await pool.query(`
             INSERT INTO ls_bank_transactions
             (transaction_type, item_id, item_name, amount, owner_user_id, recorded_by,
-             event_id, boss_name, source, status, description)
-            VALUES ('sale', $1, $2, 0, $3, $4, $5, $6, $7, 'on_hold', $8)
+             event_id, boss_name, source, status, description, transaction_id)
+            VALUES ('sale', $1, $2, 0, $3, $4, $5, $6, $7, 'on_hold', $8, $9)
             RETURNING *
         `, [item_id, item_name, owner_user_id, recorded_by, event_id, boss_name,
-            source || 'manual', `Money item stored for ${owner_user_id ? 'LS member' : 'future sale'}`]);
+            source || 'manual', `Money item stored for ${owner_user_id ? 'LS member' : 'future sale'}`, transaction_id]);
 
         res.json({ success: true, transaction: result.rows[0] });
     } catch (error) {
@@ -1875,7 +1915,7 @@ app.get('/api/ls-shop/inventory', async (req, res) => {
 // Add item to shop
 app.post('/api/ls-shop/add', async (req, res) => {
     try {
-        const { item_id, item_name, quantity, added_by, event_id, source, notes } = req.body;
+        const { item_id, item_name, quantity, added_by, event_id, source, notes, transaction_id } = req.body;
 
         // Check if item already exists in shop
         const existing = await pool.query(
@@ -1896,10 +1936,10 @@ app.post('/api/ls-shop/add', async (req, res) => {
             // Insert new item
             result = await pool.query(`
                 INSERT INTO ls_shop_inventory
-                (item_id, item_name, quantity, added_by, event_id, source, notes)
-                VALUES ($1, $2, $3, $4, $5, $6, $7)
+                (item_id, item_name, quantity, added_by, event_id, source, notes, transaction_id)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
                 RETURNING *
-            `, [item_id, item_name, quantity || 1, added_by, event_id, source || 'manual', notes]);
+            `, [item_id, item_name, quantity || 1, added_by, event_id, source || 'manual', notes, transaction_id]);
         }
 
         res.json({ success: true, item: result.rows[0] });
