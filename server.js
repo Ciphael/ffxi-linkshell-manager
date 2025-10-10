@@ -650,6 +650,29 @@ app.post('/api/bosses/:bossId/confirm-drops', async (req, res) => {
                     );
                 }
             }
+
+            // Auto-insert Pop Items and LS Store items to LS Bank (ls_shop_inventory)
+            if (drop.classification === 'Pop Item' || drop.allocation_type === 'ls_store') {
+                // Get event name for source details
+                const eventNameResult = await pool.query(
+                    'SELECT event_name FROM events WHERE id = $1',
+                    [event_id]
+                );
+                const eventName = eventNameResult.rows[0]?.event_name || 'Unknown Event';
+
+                // Format source details: "Event Name - Boss Name/Instance #"
+                const sourceDetails = `${eventName} - ${mob_name}/${bossNumber}`;
+
+                await pool.query(
+                    `INSERT INTO ls_shop_inventory (
+                        item_id, item_name, quantity, added_by, owner_user_id,
+                        event_id, source, source_details, transaction_id, status
+                    ) VALUES ($1, $2, 1, $3, $4, $5, 'event', $6, $7, 'pending_sale')
+                    ON CONFLICT (item_id, transaction_id)
+                    DO UPDATE SET quantity = ls_shop_inventory.quantity + 1`,
+                    [drop.item_id, drop.item_name, drop.won_by, drop.won_by, event_id, sourceDetails, transactionId]
+                );
+            }
         }
 
         // Mark boss as killed
@@ -1783,6 +1806,31 @@ app.get('/api/ls-bank/balance', async (req, res) => {
     } catch (error) {
         console.error('Error fetching LS bank balance:', error);
         res.status(500).json({ error: 'Failed to fetch balance' });
+    }
+});
+
+// Get LS Bank items (from ls_shop_inventory)
+app.get('/api/ls-bank/items', async (req, res) => {
+    try {
+        const result = await pool.query(`
+            SELECT
+                i.*,
+                ic.classification as type,
+                u.character_name as owner_name,
+                e.event_name,
+                eb.mob_name
+            FROM ls_shop_inventory i
+            LEFT JOIN users u ON i.owner_user_id = u.id
+            LEFT JOIN item_classifications ic ON i.item_id = ic.item_id
+            LEFT JOIN events e ON i.event_id = e.id
+            LEFT JOIN event_bosses eb ON i.source_details LIKE CONCAT('%', eb.mob_name, '%')
+            WHERE i.quantity > 0
+            ORDER BY i.added_at DESC
+        `);
+        res.json(result.rows);
+    } catch (error) {
+        console.error('Error fetching LS bank items:', error);
+        res.status(500).json({ error: 'Failed to fetch LS bank items' });
     }
 });
 
