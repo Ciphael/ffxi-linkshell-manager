@@ -1690,6 +1690,19 @@ app.put('/api/admin/users/:userId/role', async (req, res) => {
 // Get all bank transactions
 app.get('/api/ls-bank/transactions', async (req, res) => {
     try {
+        // First check if table exists
+        const tableCheck = await pool.query(`
+            SELECT EXISTS (
+                SELECT FROM information_schema.tables
+                WHERE table_name = 'ls_bank_transactions'
+            );
+        `);
+
+        if (!tableCheck.rows[0].exists) {
+            console.log('ls_bank_transactions table does not exist');
+            return res.json([]);
+        }
+
         const result = await pool.query(`
             SELECT
                 t.*,
@@ -1705,7 +1718,8 @@ app.get('/api/ls-bank/transactions', async (req, res) => {
         res.json(result.rows);
     } catch (error) {
         console.error('Error fetching LS bank transactions:', error);
-        res.status(500).json({ error: 'Failed to fetch transactions' });
+        console.error('Error stack:', error.stack);
+        res.status(500).json({ error: 'Failed to fetch transactions', details: error.message });
     }
 });
 
@@ -1980,8 +1994,60 @@ app.get('/health', (req, res) => {
     res.status(200).json({ status: 'healthy' });
 });
 
+// ============ MIGRATION RUNNER ============
+const fs = require('fs');
+const path = require('path');
+
+async function runMigrations() {
+    const migrationsDir = path.join(__dirname, 'migrations');
+
+    try {
+        // Create migrations table if it doesn't exist
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS migrations (
+                id SERIAL PRIMARY KEY,
+                filename VARCHAR(255) UNIQUE NOT NULL,
+                executed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        `);
+
+        // Get list of already executed migrations
+        const executed = await pool.query('SELECT filename FROM migrations');
+        const executedFiles = new Set(executed.rows.map(row => row.filename));
+
+        // Get all migration files
+        const files = fs.readdirSync(migrationsDir)
+            .filter(f => f.endsWith('.sql'))
+            .sort();
+
+        // Run pending migrations
+        for (const file of files) {
+            if (!executedFiles.has(file)) {
+                console.log(`Running migration: ${file}`);
+                const sql = fs.readFileSync(path.join(migrationsDir, file), 'utf8');
+
+                try {
+                    await pool.query(sql);
+                    await pool.query('INSERT INTO migrations (filename) VALUES ($1)', [file]);
+                    console.log(`✓ Migration ${file} completed`);
+                } catch (error) {
+                    console.error(`✗ Migration ${file} failed:`, error.message);
+                    // Continue with other migrations instead of stopping
+                }
+            }
+        }
+
+        console.log('All migrations processed');
+    } catch (error) {
+        console.error('Migration error:', error);
+    }
+}
+
 // Start server
-app.listen(PORT, '0.0.0.0', () => {
+app.listen(PORT, '0.0.0.0', async () => {
     console.log(`Server running on port ${PORT}`);
     console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
+
+    // Run migrations on startup
+    await runMigrations();
 });
