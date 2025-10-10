@@ -82,10 +82,16 @@ app.get('/api/test', async (req, res) => {
 
 // ============ HELPER FUNCTIONS ============
 
-// Helper: Generate transaction ID in format YYYYMMDD[E/M][AA][BB]NNNNNNN
-// Example: 20251010ESKBY0000001 (20 characters)
-// Date(8) + Type(1) + Area(2) + Boss(2) + Autonumber(7)
-async function generateTransactionId(eventDate, eventType, mobName) {
+// Helper: Generate transaction ID in format [A/R/B/S]YYYYMMDD[E/M][AA][BB]NNNNNN
+// Example: S20251010ESKBY000001 (20 characters)
+// TransactionType(1) + Date(8) + Type(1) + Area(2) + Boss(2) + Autonumber(6)
+// Transaction Types: A=Add, R=Remove, B=Buy, S=Sell
+async function generateTransactionId(transactionType, eventDate, eventType, mobName) {
+    // Validate transaction type
+    if (!['A', 'R', 'B', 'S'].includes(transactionType)) {
+        throw new Error(`Invalid transaction type: ${transactionType}. Must be A, R, B, or S.`);
+    }
+
     // Format date: YYYYMMDD
     const dateObj = new Date(eventDate);
     const year = dateObj.getFullYear();
@@ -113,8 +119,8 @@ async function generateTransactionId(eventDate, eventType, mobName) {
         .substring(0, 2)
         .padEnd(2, 'X');
 
-    // Build prefix for querying existing transaction IDs
-    const prefix = `${dateStr}${typeCode}${areaCode}`;
+    // Build prefix for querying existing transaction IDs (include transaction type)
+    const prefix = `${transactionType}${dateStr}${typeCode}${areaCode}`;
 
     // Query for the highest autonumber with this prefix
     const result = await pool.query(
@@ -127,16 +133,16 @@ async function generateTransactionId(eventDate, eventType, mobName) {
 
     let autonumber = 1;
     if (result.rows.length > 0) {
-        // Extract the last 7 digits and increment
+        // Extract the last 6 digits and increment
         const lastId = result.rows[0].transaction_id;
-        const lastNumber = parseInt(lastId.substring(13)); // Position 13-19 is the autonumber
+        const lastNumber = parseInt(lastId.substring(14)); // Position 14-19 is the autonumber (6 digits)
         autonumber = lastNumber + 1;
     }
 
-    // Format autonumber as 7 digits
-    const autonumberStr = String(autonumber).padStart(7, '0');
+    // Format autonumber as 6 digits
+    const autonumberStr = String(autonumber).padStart(6, '0');
 
-    return `${dateStr}${typeCode}${areaCode}${bossCode}${autonumberStr}`;
+    return `${transactionType}${dateStr}${typeCode}${areaCode}${bossCode}${autonumberStr}`;
 }
 
 // Helper: Create planned drops for a boss based on mob_droplist and item_classifications
@@ -613,11 +619,20 @@ app.post('/api/bosses/:bossId/confirm-drops', async (req, res) => {
         );
         const bossNumber = parseInt(bossCountResult.rows[0].boss_number);
 
-        // Generate transaction ID: YYYYMMDD[E/M][AA][BB]NNNNNNN (20 chars)
-        const transactionId = await generateTransactionId(event_date, event_type, mob_name);
-
         // Update or insert confirmed drops
         for (const drop of confirmedDrops) {
+            // Determine transaction type based on allocation
+            let transactionType;
+            if (drop.allocation_type === 'external') {
+                transactionType = 'S'; // Sell - external buyer sales
+            } else if (drop.classification === 'Pop Item' || drop.classification === 'Money Item' || drop.allocation_type === 'ls_store') {
+                transactionType = 'A'; // Add - items going to LS inventory
+            } else {
+                transactionType = 'A'; // Default to Add
+            }
+
+            // Generate unique transaction ID for this drop
+            const transactionId = await generateTransactionId(transactionType, event_date, event_type, mob_name);
             // Check if this drop was pre-planned
             const existingDrop = await pool.query(
                 `SELECT id FROM planned_event_drops
@@ -783,7 +798,7 @@ app.post('/api/bosses/:bossId/confirm-drops', async (req, res) => {
         );
 
         await pool.query('COMMIT');
-        res.json({ success: true, message: 'Drops confirmed successfully', transactionId });
+        res.json({ success: true, message: 'Drops confirmed successfully' });
 
     } catch (error) {
         await pool.query('ROLLBACK');
