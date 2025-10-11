@@ -1971,13 +1971,13 @@ app.post('/api/ls-bank/sale', async (req, res) => {
 
         const prefix = `S${dateStr}M`;
 
-        // Query for autonumber from planned_event_drops (uses VARCHAR transaction_id)
+        // Query for autonumber from ls_bank_transactions (check all transactions from today)
         const countResult = await client.query(
-            `SELECT transaction_id FROM planned_event_drops
-             WHERE transaction_id LIKE $1 || '%'
+            `SELECT transaction_id FROM ls_bank_transactions
+             WHERE transaction_id LIKE '_' || $1 || '%'
              ORDER BY transaction_id DESC
              LIMIT 1`,
-            [prefix]
+            [dateStr]
         );
 
         let autonumber = 1;
@@ -2026,13 +2026,13 @@ app.post('/api/ls-bank/purchase', async (req, res) => {
 
         const prefix = `A${dateStr}M`;
 
-        // Query for autonumber from planned_event_drops (uses VARCHAR transaction_id)
+        // Query for autonumber from ls_bank_transactions (check all transactions from today)
         const result = await client.query(
-            `SELECT transaction_id FROM planned_event_drops
-             WHERE transaction_id LIKE $1 || '%'
+            `SELECT transaction_id FROM ls_bank_transactions
+             WHERE transaction_id LIKE '_' || $1 || '%'
              ORDER BY transaction_id DESC
              LIMIT 1`,
-            [prefix]
+            [dateStr]
         );
 
         let autonumber = 1;
@@ -2114,13 +2114,13 @@ app.post('/api/ls-bank/add-item', async (req, res) => {
 
             const prefix = `A${dateStr}M`;
 
-            // Query for autonumber from planned_event_drops (uses VARCHAR transaction_id)
+            // Query for autonumber from ls_bank_transactions (check all transactions from today)
             const result = await client.query(
-                `SELECT transaction_id FROM planned_event_drops
-                 WHERE transaction_id LIKE $1 || '%'
+                `SELECT transaction_id FROM ls_bank_transactions
+                 WHERE transaction_id LIKE '_' || $1 || '%'
                  ORDER BY transaction_id DESC
                  LIMIT 1`,
-                [prefix]
+                [dateStr]
             );
 
             let autonumber = 1;
@@ -2216,13 +2216,13 @@ app.post('/api/ls-bank/remove-item', async (req, res) => {
 
             const prefix = `R${dateStr}M`;
 
-            // Query for autonumber from planned_event_drops (uses VARCHAR transaction_id)
+            // Query for autonumber from ls_bank_transactions (check all transactions from today)
             const result = await client.query(
-                `SELECT transaction_id FROM planned_event_drops
-                 WHERE transaction_id LIKE $1 || '%'
+                `SELECT transaction_id FROM ls_bank_transactions
+                 WHERE transaction_id LIKE '_' || $1 || '%'
                  ORDER BY transaction_id DESC
                  LIMIT 1`,
-                [prefix]
+                [dateStr]
             );
 
             let autonumber = 1;
@@ -2371,13 +2371,13 @@ app.post('/api/ls-bank/items/:shopItemId/sold', async (req, res) => {
 
             const prefix = `S${dateStr}M`;
 
-            // Query for autonumber from planned_event_drops (uses VARCHAR transaction_id)
+            // Query for autonumber from ls_bank_transactions (check all transactions from today)
             const countResult = await client.query(
-                `SELECT transaction_id FROM planned_event_drops
-                 WHERE transaction_id LIKE $1 || '%'
+                `SELECT transaction_id FROM ls_bank_transactions
+                 WHERE transaction_id LIKE '_' || $1 || '%'
                  ORDER BY transaction_id DESC
                  LIMIT 1`,
-                [prefix]
+                [dateStr]
             );
 
             let autonumber = 1;
