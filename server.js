@@ -768,7 +768,7 @@ app.post('/api/bosses/:bossId/confirm-drops', async (req, res) => {
                     `INSERT INTO ls_shop_inventory (
                         item_id, item_name, quantity, added_by, owner_user_id,
                         event_id, source, source_details, transaction_id, status
-                    ) VALUES ($1, $2, 1, $3, $4, $5, 'event', $6, $7, $8)`,
+                    ) VALUES ($1, $2, 1, $3, $4, $5, 'Event Drop', $6, $7, $8)`,
                     [drop.item_id, drop.item_name, drop.won_by, drop.won_by, event_id, sourceDetails, transactionId, itemStatus]
                 );
 
@@ -779,7 +779,7 @@ app.post('/api/bosses/:bossId/confirm-drops', async (req, res) => {
                     `INSERT INTO ls_bank_transactions (
                         transaction_type, item_id, item_name, amount, description,
                         recorded_by, event_id, source, status
-                    ) VALUES ('add', $1, $2, 0, $3, $4, $5, 'boss_drop', 'completed')`,
+                    ) VALUES ('add', $1, $2, 0, $3, $4, $5, 'Event Drop', 'completed')`,
                     [
                         drop.item_id,
                         drop.item_name,
@@ -1995,7 +1995,7 @@ app.post('/api/ls-bank/sale', async (req, res) => {
             (transaction_type, item_id, item_name, amount, description, recorded_by, event_id, source, transaction_id)
             VALUES ('sale', $1, $2, $3, $4, $5, $6, $7, $8)
             RETURNING *
-        `, [item_id, item_name, amount, description, recorded_by, event_id, source || 'manual', transactionId]);
+        `, [item_id, item_name, amount, description, recorded_by, event_id, source || 'Manual', transactionId]);
 
         await client.query('COMMIT');
         res.json({ success: true, transaction: result.rows[0] });
@@ -2060,7 +2060,7 @@ app.post('/api/ls-bank/purchase', async (req, res) => {
             `INSERT INTO ls_shop_inventory (
                 item_id, item_name, quantity, added_by, owner_user_id,
                 source, source_details, transaction_id, status
-            ) VALUES ($1, $2, 1, $3, $4, 'manual', $5, $6, $7)
+            ) VALUES ($1, $2, 1, $3, $4, 'Manual', $5, $6, $7)
             RETURNING *`,
             [item_id, item_name, recorded_by, purchaser_id,
              description || `Purchased ${item_name}`, transactionId, itemStatus]
@@ -2071,7 +2071,7 @@ app.post('/api/ls-bank/purchase', async (req, res) => {
             `INSERT INTO ls_bank_transactions (
                 transaction_type, item_id, item_name, amount, description,
                 recorded_by, owner_user_id, source, status, transaction_id
-            ) VALUES ('purchase', $1, $2, $3, $4, $5, $6, 'manual', 'completed', $7)`,
+            ) VALUES ('purchase', $1, $2, $3, $4, $5, $6, 'Manual', 'completed', $7)`,
             [
                 item_id,
                 item_name,
@@ -2148,7 +2148,7 @@ app.post('/api/ls-bank/add-item', async (req, res) => {
                 `INSERT INTO ls_shop_inventory (
                     item_id, item_name, quantity, added_by, owner_user_id,
                     source, source_details, transaction_id, status
-                ) VALUES ($1, $2, 1, $3, $4, 'manual', $5, $6, $7)
+                ) VALUES ($1, $2, 1, $3, $4, 'Manual', $5, $6, $7)
                 RETURNING *`,
                 [item_id, item_name, recorded_by, owner_user_id,
                  description || 'Manually added to LS Bank', transactionId, itemStatus]
@@ -2160,7 +2160,7 @@ app.post('/api/ls-bank/add-item', async (req, res) => {
                 `INSERT INTO ls_bank_transactions (
                     transaction_type, item_id, item_name, amount, description,
                     recorded_by, owner_user_id, source, status, transaction_id
-                ) VALUES ('add', $1, $2, 0, $3, $4, $5, 'manual', 'completed', $6)`,
+                ) VALUES ('add', $1, $2, 0, $3, $4, $5, 'Manual', 'completed', $6)`,
                 [
                     item_id,
                     item_name,
@@ -2248,7 +2248,7 @@ app.post('/api/ls-bank/remove-item', async (req, res) => {
                 `INSERT INTO ls_bank_transactions (
                     transaction_type, item_id, item_name, amount, description,
                     recorded_by, owner_user_id, source, status, transaction_id
-                ) VALUES ('remove', $1, $2, 0, $3, $4, $5, 'manual', 'completed', $6)`,
+                ) VALUES ('remove', $1, $2, 0, $3, $4, $5, 'Manual', 'completed', $6)`,
                 [
                     item.item_id,
                     item.item_name,
@@ -2286,7 +2286,7 @@ app.post('/api/ls-bank/store-money-item', async (req, res) => {
             VALUES ('sale', $1, $2, 0, $3, $4, $5, $6, $7, 'on_hold', $8)
             RETURNING *
         `, [item_id, item_name, owner_user_id, recorded_by, event_id, boss_name,
-            source || 'manual', `Money item stored for ${owner_user_id ? 'LS member' : 'future sale'}`]);
+            source || 'Manual', `Money item stored for ${owner_user_id ? 'LS member' : 'future sale'}`]);
 
         res.json({ success: true, transaction: result.rows[0] });
     } catch (error) {
@@ -2403,7 +2403,7 @@ app.post('/api/ls-bank/items/:shopItemId/sold', async (req, res) => {
                 `INSERT INTO ls_bank_transactions
                  (transaction_type, item_id, item_name, amount, description, recorded_by,
                   event_id, source, status, transaction_id)
-                 VALUES ('sale', $1, $2, $3, $4, $5, $6, 'ls_bank_item', 'completed', $7)`,
+                 VALUES ('sale', $1, $2, $3, $4, $5, $6, 'Bank', 'completed', $7)`,
                 [item.item_id, item.item_name, amount,
                  notes || `Sale of ${item.item_name} from LS Bank`,
                  recorded_by, item.event_id, transactionId]
@@ -2475,7 +2475,7 @@ app.post('/api/ls-shop/add', async (req, res) => {
                 (item_id, item_name, quantity, added_by, event_id, source, notes, transaction_id)
                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
                 RETURNING *
-            `, [item_id, item_name, quantity || 1, added_by, event_id, source || 'manual', notes, transaction_id]);
+            `, [item_id, item_name, quantity || 1, added_by, event_id, source || 'Manual', notes, transaction_id]);
         }
 
         res.json({ success: true, item: result.rows[0] });
