@@ -1971,21 +1971,87 @@ app.post('/api/ls-bank/sale', async (req, res) => {
 
 // Add a purchase transaction
 app.post('/api/ls-bank/purchase', async (req, res) => {
+    const client = await pool.connect();
     try {
         const { item_id, item_name, amount, description, recorded_by, purchaser_id } = req.body;
 
-        const result = await pool.query(`
-            INSERT INTO ls_bank_transactions
-            (transaction_type, item_id, item_name, amount, description, recorded_by, owner_user_id, source, status)
-            VALUES ('purchase', $1, $2, $3, $4, $5, $6, 'manual', 'completed')
-            RETURNING *
-        `, [item_id, item_name, amount, description, recorded_by, purchaser_id]);
+        await client.query('BEGIN');
 
-        res.json({ success: true, transaction: result.rows[0] });
+        // Generate transaction ID for purchase (20 chars total)
+        // Format: A[YYYYMMDD]M[XX][XX][000001]
+        const today = new Date();
+        const year = today.getFullYear();
+        const month = String(today.getMonth() + 1).padStart(2, '0');
+        const day = String(today.getDate()).padStart(2, '0');
+        const dateStr = `${year}${month}${day}`;
+
+        const prefix = `A${dateStr}M`;
+
+        // Query for autonumber from planned_event_drops (uses VARCHAR transaction_id)
+        const result = await client.query(
+            `SELECT transaction_id FROM planned_event_drops
+             WHERE transaction_id LIKE $1 || '%'
+             ORDER BY transaction_id DESC
+             LIMIT 1`,
+            [prefix]
+        );
+
+        let autonumber = 1;
+        if (result.rows.length > 0) {
+            const lastId = result.rows[0].transaction_id;
+            const lastNumber = parseInt(lastId.substring(14)); // Last 6 digits
+            autonumber = lastNumber + 1;
+        }
+
+        // Format: A[8 digits]M[2 area][2 boss][6 autonumber] = 20 chars
+        const transactionId = `${prefix}XXXX${String(autonumber).padStart(6, '0')}`;
+
+        // Get item classification to set appropriate status
+        const classificationResult = await client.query(
+            'SELECT classification FROM item_classifications WHERE item_id = $1',
+            [item_id]
+        );
+        const classification = classificationResult.rows[0]?.classification || 'Marketable';
+
+        // Determine status based on classification
+        const itemStatus = classification === 'Pop Item' ? 'Event Item' : 'pending_sale';
+
+        // Insert into ls_shop_inventory (the actual item)
+        const insertResult = await client.query(
+            `INSERT INTO ls_shop_inventory (
+                item_id, item_name, quantity, added_by, owner_user_id,
+                source, source_details, transaction_id, status
+            ) VALUES ($1, $2, 1, $3, $4, 'manual', $5, $6, $7)
+            RETURNING *`,
+            [item_id, item_name, recorded_by, purchaser_id,
+             description || `Purchased ${item_name}`, transactionId, itemStatus]
+        );
+
+        // Create corresponding transaction in ls_bank_transactions
+        await client.query(
+            `INSERT INTO ls_bank_transactions (
+                transaction_type, item_id, item_name, amount, description,
+                recorded_by, owner_user_id, source, status
+            ) VALUES ('purchase', $1, $2, $3, $4, $5, $6, 'manual', 'completed')`,
+            [
+                item_id,
+                item_name,
+                amount,
+                description || `Purchased ${item_name} for ${amount} gil`,
+                recorded_by,
+                purchaser_id
+            ]
+        );
+
+        await client.query('COMMIT');
+        res.json({ success: true, item: insertResult.rows[0] });
     } catch (error) {
+        await client.query('ROLLBACK');
         console.error('Error adding purchase:', error);
         console.error('Error details:', error.message);
         res.status(500).json({ error: 'Failed to add purchase', details: error.message });
+    } finally {
+        client.release();
     }
 });
 
