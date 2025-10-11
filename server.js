@@ -788,9 +788,7 @@ app.post('/api/bosses/:bossId/confirm-drops', async (req, res) => {
                     `INSERT INTO ls_shop_inventory (
                         item_id, item_name, quantity, added_by, owner_user_id,
                         event_id, source, source_details, transaction_id, status
-                    ) VALUES ($1, $2, 1, $3, $4, $5, 'event', $6, $7, $8)
-                    ON CONFLICT (item_id, transaction_id)
-                    DO UPDATE SET quantity = ls_shop_inventory.quantity + 1`,
+                    ) VALUES ($1, $2, 1, $3, $4, $5, 'event', $6, $7, $8)`,
                     [drop.item_id, drop.item_name, drop.won_by, drop.won_by, event_id, sourceDetails, transactionId, itemStatus]
                 );
 
@@ -2102,7 +2100,7 @@ app.post('/api/ls-bank/remove-item', async (req, res) => {
 
             // Get item details before removing
             const itemResult = await client.query(
-                'SELECT * FROM ls_shop_inventory WHERE id = $1',
+                'SELECT * FROM ls_shop_inventory WHERE shop_item_id = $1',
                 [shop_item_id]
             );
 
@@ -2145,7 +2143,7 @@ app.post('/api/ls-bank/remove-item', async (req, res) => {
             await client.query(
                 `UPDATE ls_shop_inventory
                  SET quantity = 0, status = 'removed'
-                 WHERE id = $1`,
+                 WHERE shop_item_id = $1`,
                 [shop_item_id]
             );
 
