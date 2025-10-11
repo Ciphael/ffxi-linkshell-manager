@@ -1891,10 +1891,12 @@ app.get('/api/ls-bank/transactions', async (req, res) => {
             SELECT
                 t.*,
                 u.character_name as recorded_by_name,
-                u2.character_name as owner_name
+                u2.character_name as owner_name,
+                ic.classification as item_type
             FROM ls_bank_transactions t
             LEFT JOIN users u ON t.recorded_by = u.id
             LEFT JOIN users u2 ON t.owner_user_id = u2.id
+            LEFT JOIN item_classifications ic ON t.item_id = ic.item_id
             ORDER BY t.recorded_at DESC
         `);
         res.json(result.rows);
