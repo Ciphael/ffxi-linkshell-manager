@@ -729,42 +729,22 @@ app.post('/api/bosses/:bossId/confirm-drops', async (req, res) => {
             }
 
             // Create LS Bank transaction for external buyer sales
+            // Note: transaction_id is SERIAL PRIMARY KEY, auto-increments, don't set it
             if (drop.allocation_type === 'external' && drop.external_buyer && drop.sell_value > 0) {
-                // Try to insert with transaction_id, fall back without if column doesn't exist
-                try {
-                    await pool.query(
-                        `INSERT INTO ls_bank_transactions (
-                            transaction_type, item_id, item_name, amount, description,
-                            recorded_by, event_id, source, status, transaction_id
-                        ) VALUES ('sale', $1, $2, $3, $4, $5, $6, 'boss_drop', 'completed', $7)`,
-                        [
-                            drop.item_id,
-                            drop.item_name,
-                            drop.sell_value,
-                            `Sold ${drop.item_name} to ${drop.external_buyer} (${mob_name})`,
-                            drop.won_by || null,
-                            event_id,
-                            transactionId
-                        ]
-                    );
-                } catch (txError) {
-                    // If transaction_id column doesn't exist or has wrong type, insert without it
-                    console.log('Failed to insert with transaction_id, trying without:', txError.message);
-                    await pool.query(
-                        `INSERT INTO ls_bank_transactions (
-                            transaction_type, item_id, item_name, amount, description,
-                            recorded_by, event_id, source, status
-                        ) VALUES ('sale', $1, $2, $3, $4, $5, $6, 'boss_drop', 'completed')`,
-                        [
-                            drop.item_id,
-                            drop.item_name,
-                            drop.sell_value,
-                            `Sold ${drop.item_name} to ${drop.external_buyer} (${mob_name})`,
-                            drop.won_by || null,
-                            event_id
-                        ]
-                    );
-                }
+                await pool.query(
+                    `INSERT INTO ls_bank_transactions (
+                        transaction_type, item_id, item_name, amount, description,
+                        recorded_by, event_id, source, status
+                    ) VALUES ('sale', $1, $2, $3, $4, $5, $6, 'boss_drop', 'completed')`,
+                    [
+                        drop.item_id,
+                        drop.item_name,
+                        drop.sell_value,
+                        `Sold ${drop.item_name} to ${drop.external_buyer} (${mob_name})`,
+                        drop.won_by || null,
+                        event_id
+                    ]
+                );
             }
 
             // Auto-insert Pop Items, Money Items, and LS Store items to LS Bank (ls_shop_inventory)
@@ -794,18 +774,18 @@ app.post('/api/bosses/:bossId/confirm-drops', async (req, res) => {
 
                 // Create corresponding transaction in ls_bank_transactions
                 // Note: ls_bank_transactions.status CHECK allows only ('completed', 'on_hold')
+                // Note: transaction_id is SERIAL PRIMARY KEY, auto-increments, don't set it
                 await pool.query(
                     `INSERT INTO ls_bank_transactions (
                         transaction_type, item_id, item_name, amount, description,
-                        recorded_by, event_id, source, status, transaction_id
-                    ) VALUES ('add', $1, $2, 0, $3, $4, $5, 'boss_drop', 'completed', $6)`,
+                        recorded_by, event_id, source, status
+                    ) VALUES ('add', $1, $2, 0, $3, $4, $5, 'boss_drop', 'completed')`,
                     [
                         drop.item_id,
                         drop.item_name,
                         `Added ${drop.item_name} to LS Bank from ${mob_name} (${eventName})`,
                         drop.won_by || null,
-                        event_id,
-                        transactionId
+                        event_id
                     ]
                 );
             }
@@ -2070,18 +2050,18 @@ app.post('/api/ls-bank/add-item', async (req, res) => {
 
             // Create corresponding transaction in ls_bank_transactions
             // Note: ls_bank_transactions.status CHECK allows only ('completed', 'on_hold')
+            // Note: transaction_id is SERIAL PRIMARY KEY, auto-increments, don't set it
             await client.query(
                 `INSERT INTO ls_bank_transactions (
                     transaction_type, item_id, item_name, amount, description,
-                    recorded_by, owner_user_id, source, status, transaction_id
-                ) VALUES ('add', $1, $2, 0, $3, $4, $5, 'manual', 'completed', $6)`,
+                    recorded_by, owner_user_id, source, status
+                ) VALUES ('add', $1, $2, 0, $3, $4, $5, 'manual', 'completed')`,
                 [
                     item_id,
                     item_name,
                     description || `Manually added ${item_name} to LS Bank`,
                     recorded_by,
-                    owner_user_id,
-                    transactionId
+                    owner_user_id
                 ]
             );
 
@@ -2158,18 +2138,18 @@ app.post('/api/ls-bank/remove-item', async (req, res) => {
             );
 
             // Create removal transaction in ls_bank_transactions
+            // Note: transaction_id is SERIAL PRIMARY KEY, auto-increments, don't set it
             await client.query(
                 `INSERT INTO ls_bank_transactions (
                     transaction_type, item_id, item_name, amount, description,
-                    recorded_by, owner_user_id, source, status, transaction_id
-                ) VALUES ('remove', $1, $2, 0, $3, $4, $5, 'manual', 'completed', $6)`,
+                    recorded_by, owner_user_id, source, status
+                ) VALUES ('remove', $1, $2, 0, $3, $4, $5, 'manual', 'completed')`,
                 [
                     item.item_id,
                     item.item_name,
                     `Removed ${item.item_name} from LS Bank. Reason: ${reason}`,
                     recorded_by,
-                    item.owner_user_id,
-                    transactionId
+                    item.owner_user_id
                 ]
             );
 
@@ -2192,14 +2172,15 @@ app.post('/api/ls-bank/store-money-item', async (req, res) => {
     try {
         const { item_id, item_name, owner_user_id, recorded_by, event_id, boss_name, source, transaction_id } = req.body;
 
+        // Note: transaction_id is SERIAL PRIMARY KEY, auto-increments, don't set it
         const result = await pool.query(`
             INSERT INTO ls_bank_transactions
             (transaction_type, item_id, item_name, amount, owner_user_id, recorded_by,
-             event_id, boss_name, source, status, description, transaction_id)
-            VALUES ('sale', $1, $2, 0, $3, $4, $5, $6, $7, 'on_hold', $8, $9)
+             event_id, boss_name, source, status, description)
+            VALUES ('sale', $1, $2, 0, $3, $4, $5, $6, $7, 'on_hold', $8)
             RETURNING *
         `, [item_id, item_name, owner_user_id, recorded_by, event_id, boss_name,
-            source || 'manual', `Money item stored for ${owner_user_id ? 'LS member' : 'future sale'}`, transaction_id]);
+            source || 'manual', `Money item stored for ${owner_user_id ? 'LS member' : 'future sale'}`]);
 
         res.json({ success: true, transaction: result.rows[0] });
     } catch (error) {
@@ -2281,14 +2262,15 @@ app.post('/api/ls-bank/items/:shopItemId/sold', async (req, res) => {
             );
 
             // Create bank transaction for the sale
+            // Note: transaction_id is SERIAL PRIMARY KEY, auto-increments, don't set it
             await client.query(
                 `INSERT INTO ls_bank_transactions
                  (transaction_type, item_id, item_name, amount, description, recorded_by,
-                  event_id, source, status, transaction_id)
-                 VALUES ('sale', $1, $2, $3, $4, $5, $6, 'ls_bank_item', 'completed', $7)`,
+                  event_id, source, status)
+                 VALUES ('sale', $1, $2, $3, $4, $5, $6, 'ls_bank_item', 'completed')`,
                 [item.item_id, item.item_name, amount,
                  notes || `Sale of ${item.item_name} from LS Bank`,
-                 recorded_by, item.event_id, item.transaction_id]
+                 recorded_by, item.event_id]
             );
 
             await client.query('COMMIT');
