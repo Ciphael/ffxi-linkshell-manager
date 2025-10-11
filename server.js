@@ -2047,15 +2047,25 @@ app.post('/api/ls-bank/add-item', async (req, res) => {
             // Format: A[8 digits]M[2 area][2 boss][6 autonumber] = 20 chars
             const transactionId = `${prefix}XXXX${String(autonumber).padStart(6, '0')}`;
 
+            // Get item classification to set appropriate status
+            const classificationResult = await client.query(
+                'SELECT classification FROM item_classifications WHERE item_id = $1',
+                [item_id]
+            );
+            const classification = classificationResult.rows[0]?.classification || 'Marketable';
+
+            // Determine status based on classification (same logic as boss drops)
+            const itemStatus = classification === 'Pop Item' ? 'Event Item' : 'pending_sale';
+
             // Insert into ls_shop_inventory
             const insertResult = await client.query(
                 `INSERT INTO ls_shop_inventory (
                     item_id, item_name, quantity, added_by, owner_user_id,
                     source, source_details, transaction_id, status
-                ) VALUES ($1, $2, 1, $3, $4, 'manual', $5, $6, 'pending_sale')
+                ) VALUES ($1, $2, 1, $3, $4, 'manual', $5, $6, $7)
                 RETURNING *`,
                 [item_id, item_name, recorded_by, owner_user_id,
-                 description || 'Manually added to LS Bank', transactionId]
+                 description || 'Manually added to LS Bank', transactionId, itemStatus]
             );
 
             // Create corresponding transaction in ls_bank_transactions
