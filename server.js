@@ -1955,20 +1955,56 @@ app.get('/api/ls-bank/items', async (req, res) => {
 
 // Add a sale transaction
 app.post('/api/ls-bank/sale', async (req, res) => {
+    const client = await pool.connect();
     try {
         const { item_id, item_name, amount, description, recorded_by, event_id, source } = req.body;
 
-        const result = await pool.query(`
-            INSERT INTO ls_bank_transactions
-            (transaction_type, item_id, item_name, amount, description, recorded_by, event_id, source)
-            VALUES ('sale', $1, $2, $3, $4, $5, $6, $7)
-            RETURNING *
-        `, [item_id, item_name, amount, description, recorded_by, event_id, source || 'manual']);
+        await client.query('BEGIN');
 
+        // Generate transaction ID for sale (20 chars total)
+        // Format: S[YYYYMMDD]M[XX][XX][000001]
+        const today = new Date();
+        const year = today.getFullYear();
+        const month = String(today.getMonth() + 1).padStart(2, '0');
+        const day = String(today.getDate()).padStart(2, '0');
+        const dateStr = `${year}${month}${day}`;
+
+        const prefix = `S${dateStr}M`;
+
+        // Query for autonumber from planned_event_drops (uses VARCHAR transaction_id)
+        const countResult = await client.query(
+            `SELECT transaction_id FROM planned_event_drops
+             WHERE transaction_id LIKE $1 || '%'
+             ORDER BY transaction_id DESC
+             LIMIT 1`,
+            [prefix]
+        );
+
+        let autonumber = 1;
+        if (countResult.rows.length > 0) {
+            const lastId = countResult.rows[0].transaction_id;
+            const lastNumber = parseInt(lastId.substring(14)); // Last 6 digits
+            autonumber = lastNumber + 1;
+        }
+
+        // Format: S[8 digits]M[2 area][2 boss][6 autonumber] = 20 chars
+        const transactionId = `${prefix}XXXX${String(autonumber).padStart(6, '0')}`;
+
+        const result = await client.query(`
+            INSERT INTO ls_bank_transactions
+            (transaction_type, item_id, item_name, amount, description, recorded_by, event_id, source, transaction_id)
+            VALUES ('sale', $1, $2, $3, $4, $5, $6, $7, $8)
+            RETURNING *
+        `, [item_id, item_name, amount, description, recorded_by, event_id, source || 'manual', transactionId]);
+
+        await client.query('COMMIT');
         res.json({ success: true, transaction: result.rows[0] });
     } catch (error) {
+        await client.query('ROLLBACK');
         console.error('Error adding sale:', error);
         res.status(500).json({ error: 'Failed to add sale' });
+    } finally {
+        client.release();
     }
 });
 
@@ -2034,15 +2070,16 @@ app.post('/api/ls-bank/purchase', async (req, res) => {
         await client.query(
             `INSERT INTO ls_bank_transactions (
                 transaction_type, item_id, item_name, amount, description,
-                recorded_by, owner_user_id, source, status
-            ) VALUES ('purchase', $1, $2, $3, $4, $5, $6, 'manual', 'completed')`,
+                recorded_by, owner_user_id, source, status, transaction_id
+            ) VALUES ('purchase', $1, $2, $3, $4, $5, $6, 'manual', 'completed', $7)`,
             [
                 item_id,
                 item_name,
                 amount,
                 description || `Purchased ${item_name} for ${amount} gil`,
                 recorded_by,
-                purchaser_id
+                purchaser_id,
+                transactionId
             ]
         );
 
@@ -2119,18 +2156,18 @@ app.post('/api/ls-bank/add-item', async (req, res) => {
 
             // Create corresponding transaction in ls_bank_transactions
             // Note: ls_bank_transactions.status CHECK allows only ('completed', 'on_hold')
-            // Note: transaction_id is SERIAL PRIMARY KEY, auto-increments, don't set it
             await client.query(
                 `INSERT INTO ls_bank_transactions (
                     transaction_type, item_id, item_name, amount, description,
-                    recorded_by, owner_user_id, source, status
-                ) VALUES ('add', $1, $2, 0, $3, $4, $5, 'manual', 'completed')`,
+                    recorded_by, owner_user_id, source, status, transaction_id
+                ) VALUES ('add', $1, $2, 0, $3, $4, $5, 'manual', 'completed', $6)`,
                 [
                     item_id,
                     item_name,
                     description || `Manually added ${item_name} to LS Bank`,
                     recorded_by,
-                    owner_user_id
+                    owner_user_id,
+                    transactionId
                 ]
             );
 
@@ -2207,18 +2244,18 @@ app.post('/api/ls-bank/remove-item', async (req, res) => {
             );
 
             // Create removal transaction in ls_bank_transactions
-            // Note: transaction_id is SERIAL PRIMARY KEY, auto-increments, don't set it
             await client.query(
                 `INSERT INTO ls_bank_transactions (
                     transaction_type, item_id, item_name, amount, description,
-                    recorded_by, owner_user_id, source, status
-                ) VALUES ('remove', $1, $2, 0, $3, $4, $5, 'manual', 'completed')`,
+                    recorded_by, owner_user_id, source, status, transaction_id
+                ) VALUES ('remove', $1, $2, 0, $3, $4, $5, 'manual', 'completed', $6)`,
                 [
                     item.item_id,
                     item.item_name,
                     `Removed ${item.item_name} from LS Bank. Reason: ${reason}`,
                     recorded_by,
-                    item.owner_user_id
+                    item.owner_user_id,
+                    transactionId
                 ]
             );
 
@@ -2324,6 +2361,35 @@ app.post('/api/ls-bank/items/:shopItemId/sold', async (req, res) => {
 
             const item = itemResult.rows[0];
 
+            // Generate transaction ID for sale (20 chars total)
+            // Format: S[YYYYMMDD]M[XX][XX][000001]
+            const today = new Date();
+            const year = today.getFullYear();
+            const month = String(today.getMonth() + 1).padStart(2, '0');
+            const day = String(today.getDate()).padStart(2, '0');
+            const dateStr = `${year}${month}${day}`;
+
+            const prefix = `S${dateStr}M`;
+
+            // Query for autonumber from planned_event_drops (uses VARCHAR transaction_id)
+            const countResult = await client.query(
+                `SELECT transaction_id FROM planned_event_drops
+                 WHERE transaction_id LIKE $1 || '%'
+                 ORDER BY transaction_id DESC
+                 LIMIT 1`,
+                [prefix]
+            );
+
+            let autonumber = 1;
+            if (countResult.rows.length > 0) {
+                const lastId = countResult.rows[0].transaction_id;
+                const lastNumber = parseInt(lastId.substring(14)); // Last 6 digits
+                autonumber = lastNumber + 1;
+            }
+
+            // Format: S[8 digits]M[2 area][2 boss][6 autonumber] = 20 chars
+            const transactionId = `${prefix}XXXX${String(autonumber).padStart(6, '0')}`;
+
             // Update item status to 'sold'
             await client.query(
                 `UPDATE ls_shop_inventory
@@ -2333,15 +2399,14 @@ app.post('/api/ls-bank/items/:shopItemId/sold', async (req, res) => {
             );
 
             // Create bank transaction for the sale
-            // Note: transaction_id is SERIAL PRIMARY KEY, auto-increments, don't set it
             await client.query(
                 `INSERT INTO ls_bank_transactions
                  (transaction_type, item_id, item_name, amount, description, recorded_by,
-                  event_id, source, status)
-                 VALUES ('sale', $1, $2, $3, $4, $5, $6, 'ls_bank_item', 'completed')`,
+                  event_id, source, status, transaction_id)
+                 VALUES ('sale', $1, $2, $3, $4, $5, $6, 'ls_bank_item', 'completed', $7)`,
                 [item.item_id, item.item_name, amount,
                  notes || `Sale of ${item.item_name} from LS Bank`,
-                 recorded_by, item.event_id]
+                 recorded_by, item.event_id, transactionId]
             );
 
             await client.query('COMMIT');
