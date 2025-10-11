@@ -2263,11 +2263,13 @@ app.get('/api/ls-bank/on-hold', async (req, res) => {
                 t.*,
                 u.character_name as owner_name,
                 u2.character_name as recorded_by_name,
-                e.name as event_name
+                e.name as event_name,
+                ic.market_rate
             FROM ls_bank_transactions t
             LEFT JOIN users u ON t.owner_user_id = u.id
             LEFT JOIN users u2 ON t.recorded_by = u2.id
             LEFT JOIN events e ON t.event_id = e.id
+            LEFT JOIN item_classifications ic ON t.item_id = ic.item_id
             WHERE t.status = 'on_hold'
             ORDER BY t.recorded_at DESC
         `);
