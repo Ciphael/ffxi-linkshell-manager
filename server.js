@@ -1932,6 +1932,7 @@ app.get('/api/ls-bank/items', async (req, res) => {
             SELECT
                 i.*,
                 ic.classification as type,
+                ic.market_rate,
                 u.character_name as owner_name,
                 e.event_name,
                 eb.mob_name
