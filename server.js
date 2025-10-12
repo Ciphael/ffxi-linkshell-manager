@@ -2900,6 +2900,79 @@ app.get('/api/monthly-jobs/multiplier/:userId', async (req, res) => {
     }
 });
 
+// ============ POINTS SYSTEM CONFIRMATION ENDPOINTS ============
+
+// Get user's points system confirmation status
+app.get('/api/points-confirmation', async (req, res) => {
+    try {
+        const userId = req.query.user_id;
+        if (!userId) {
+            return res.status(400).json({ error: 'user_id is required' });
+        }
+
+        const result = await pool.query(
+            `SELECT confirmed_at FROM points_system_confirmation
+             WHERE user_id = $1`,
+            [userId]
+        );
+
+        if (result.rows.length === 0) {
+            res.json({ confirmed: false });
+        } else {
+            res.json({
+                confirmed: true,
+                confirmed_at: result.rows[0].confirmed_at
+            });
+        }
+    } catch (error) {
+        console.error('Error checking points confirmation:', error);
+        res.status(500).json({ error: 'Failed to check confirmation status' });
+    }
+});
+
+// Record user's points system confirmation
+app.post('/api/points-confirmation', async (req, res) => {
+    try {
+        const { user_id } = req.body;
+
+        if (!user_id) {
+            return res.status(400).json({ error: 'user_id is required' });
+        }
+
+        // Check if already confirmed
+        const existing = await pool.query(
+            `SELECT id, confirmed_at FROM points_system_confirmation
+             WHERE user_id = $1`,
+            [user_id]
+        );
+
+        if (existing.rows.length > 0) {
+            // Already confirmed, return existing confirmation
+            return res.json({
+                success: true,
+                confirmed_at: existing.rows[0].confirmed_at
+            });
+        }
+
+        // Insert new confirmation
+        const result = await pool.query(
+            `INSERT INTO points_system_confirmation (user_id, confirmed_at)
+             VALUES ($1, NOW())
+             RETURNING confirmed_at`,
+            [user_id]
+        );
+
+        res.json({
+            success: true,
+            confirmed_at: result.rows[0].confirmed_at
+        });
+
+    } catch (error) {
+        console.error('Error recording points confirmation:', error);
+        res.status(500).json({ error: 'Failed to record confirmation' });
+    }
+});
+
 // Health check for Railway
 app.get('/health', (req, res) => {
     res.status(200).json({ status: 'healthy' });
