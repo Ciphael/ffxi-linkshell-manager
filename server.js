@@ -729,20 +729,20 @@ app.post('/api/bosses/:bossId/confirm-drops', async (req, res) => {
             }
 
             // Create LS Bank transaction for external buyer sales
-            // Note: transaction_id is SERIAL PRIMARY KEY, auto-increments, don't set it
             if (drop.allocation_type === 'external' && drop.external_buyer && drop.sell_value > 0) {
                 await pool.query(
                     `INSERT INTO ls_bank_transactions (
                         transaction_type, item_id, item_name, amount, description,
-                        recorded_by, event_id, source, status
-                    ) VALUES ('sale', $1, $2, $3, $4, $5, $6, 'boss_drop', 'completed')`,
+                        recorded_by, event_id, source, status, transaction_id
+                    ) VALUES ('sale', $1, $2, $3, $4, $5, $6, 'Event Drop', 'completed', $7)`,
                     [
                         drop.item_id,
                         drop.item_name,
                         drop.sell_value,
                         `Sold ${drop.item_name} to ${drop.external_buyer} (${mob_name})`,
                         drop.won_by || null,
-                        event_id
+                        event_id,
+                        transactionId
                     ]
                 );
             }
@@ -774,18 +774,18 @@ app.post('/api/bosses/:bossId/confirm-drops', async (req, res) => {
 
                 // Create corresponding transaction in ls_bank_transactions
                 // Note: ls_bank_transactions.status CHECK allows only ('completed', 'on_hold')
-                // Note: transaction_id is SERIAL PRIMARY KEY, auto-increments, don't set it
                 await pool.query(
                     `INSERT INTO ls_bank_transactions (
                         transaction_type, item_id, item_name, amount, description,
-                        recorded_by, event_id, source, status
-                    ) VALUES ('add', $1, $2, 0, $3, $4, $5, 'Event Drop', 'completed')`,
+                        recorded_by, event_id, source, status, transaction_id
+                    ) VALUES ('add', $1, $2, 0, $3, $4, $5, 'Event Drop', 'completed', $6)`,
                     [
                         drop.item_id,
                         drop.item_name,
                         `Added ${drop.item_name} to LS Bank from ${mob_name} (${eventName})`,
                         drop.won_by || null,
-                        event_id
+                        event_id,
+                        transactionId
                     ]
                 );
             }
