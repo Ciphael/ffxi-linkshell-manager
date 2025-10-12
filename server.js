@@ -2275,23 +2275,57 @@ app.post('/api/ls-bank/remove-item', async (req, res) => {
 
 // Store Money Item (on-hold status)
 app.post('/api/ls-bank/store-money-item', async (req, res) => {
+    const client = await pool.connect();
     try {
-        const { item_id, item_name, owner_user_id, recorded_by, event_id, boss_name, source, transaction_id } = req.body;
+        const { item_id, item_name, owner_user_id, recorded_by, event_id, boss_name, source } = req.body;
 
-        // Note: transaction_id is SERIAL PRIMARY KEY, auto-increments, don't set it
-        const result = await pool.query(`
+        await client.query('BEGIN');
+
+        // Generate transaction ID for on-hold money item (20 chars total)
+        // Format: S[YYYYMMDD]M[XX][XX][000001]
+        const today = new Date();
+        const year = today.getFullYear();
+        const month = String(today.getMonth() + 1).padStart(2, '0');
+        const day = String(today.getDate()).padStart(2, '0');
+        const dateStr = `${year}${month}${day}`;
+        const prefix = `S${dateStr}M`;
+
+        // Query for autonumber from ls_bank_transactions (check all transactions from today)
+        const countResult = await client.query(
+            `SELECT transaction_id FROM ls_bank_transactions
+             WHERE transaction_id LIKE '_' || $1 || '%'
+             ORDER BY transaction_id DESC
+             LIMIT 1`,
+            [dateStr]
+        );
+
+        let autonumber = 1;
+        if (countResult.rows.length > 0) {
+            const lastId = countResult.rows[0].transaction_id;
+            const lastNumber = parseInt(lastId.substring(14)); // Last 6 digits
+            autonumber = lastNumber + 1;
+        }
+
+        const transactionId = `${prefix}XXXX${String(autonumber).padStart(6, '0')}`;
+
+        const result = await client.query(`
             INSERT INTO ls_bank_transactions
             (transaction_type, item_id, item_name, amount, owner_user_id, recorded_by,
-             event_id, boss_name, source, status, description)
-            VALUES ('sale', $1, $2, 0, $3, $4, $5, $6, $7, 'on_hold', $8)
+             event_id, boss_name, source, status, description, transaction_id)
+            VALUES ('sale', $1, $2, 0, $3, $4, $5, $6, $7, 'on_hold', $8, $9)
             RETURNING *
         `, [item_id, item_name, owner_user_id, recorded_by, event_id, boss_name,
-            source || 'Manual', `Money item stored for ${owner_user_id ? 'LS member' : 'future sale'}`]);
+            source || 'Manual', `Money item stored for ${owner_user_id ? 'LS member' : 'future sale'}`,
+            transactionId]);
 
+        await client.query('COMMIT');
         res.json({ success: true, transaction: result.rows[0] });
     } catch (error) {
+        await client.query('ROLLBACK');
         console.error('Error storing money item:', error);
         res.status(500).json({ error: 'Failed to store money item' });
+    } finally {
+        client.release();
     }
 });
 
@@ -2505,6 +2539,36 @@ app.post('/api/ls-shop/retrieve', async (req, res) => {
         try {
             await client.query('BEGIN');
 
+            // Generate transaction ID if selling for gil (20 chars total)
+            // Format: S[YYYYMMDD]M[XX][XX][000001]
+            let transactionId = null;
+            if (value_type === 'gil') {
+                const today = new Date();
+                const year = today.getFullYear();
+                const month = String(today.getMonth() + 1).padStart(2, '0');
+                const day = String(today.getDate()).padStart(2, '0');
+                const dateStr = `${year}${month}${day}`;
+                const prefix = `S${dateStr}M`;
+
+                // Query for autonumber from ls_bank_transactions (check all transactions from today)
+                const countResult = await client.query(
+                    `SELECT transaction_id FROM ls_bank_transactions
+                     WHERE transaction_id LIKE '_' || $1 || '%'
+                     ORDER BY transaction_id DESC
+                     LIMIT 1`,
+                    [dateStr]
+                );
+
+                let autonumber = 1;
+                if (countResult.rows.length > 0) {
+                    const lastId = countResult.rows[0].transaction_id;
+                    const lastNumber = parseInt(lastId.substring(14)); // Last 6 digits
+                    autonumber = lastNumber + 1;
+                }
+
+                transactionId = `${prefix}XXXX${String(autonumber).padStart(6, '0')}`;
+            }
+
             // Decrease inventory quantity
             await client.query(`
                 UPDATE ls_shop_inventory
@@ -2526,11 +2590,11 @@ app.post('/api/ls-shop/retrieve', async (req, res) => {
             if (value_type === 'gil') {
                 await client.query(`
                     INSERT INTO ls_bank_transactions
-                    (transaction_type, item_id, item_name, amount, description, recorded_by, source)
-                    VALUES ('sale', $1, $2, $3, $4, $5, 'shop_retrieval')
+                    (transaction_type, item_id, item_name, amount, description, recorded_by, source, transaction_id)
+                    VALUES ('sale', $1, $2, $3, $4, $5, 'Bank', $6)
                 `, [item_id, item_name, value_amount,
                     `Sold from LS Shop to ${recipient_name || 'LS Member'}`,
-                    retrieved_by]);
+                    retrieved_by, transactionId]);
             }
 
             await client.query('COMMIT');
