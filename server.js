@@ -2726,13 +2726,27 @@ app.get('/api/monthly-jobs/history', async (req, res) => {
 app.post('/api/monthly-jobs/register', async (req, res) => {
     const client = await pool.connect();
     try {
-        const { user_id, job, is_admin } = req.body;
+        const { user_id, job } = req.body;
 
         if (!user_id || !job) {
             return res.status(400).json({ error: 'user_id and job are required' });
         }
 
         await client.query('BEGIN');
+
+        // Get user's role from database (security - don't trust client)
+        const userQuery = await client.query(
+            `SELECT role FROM users WHERE id = $1`,
+            [user_id]
+        );
+
+        if (userQuery.rows.length === 0) {
+            await client.query('ROLLBACK');
+            return res.status(404).json({ error: 'User not found' });
+        }
+
+        const userRole = userQuery.rows[0].role;
+        const isAdmin = userRole === 'admin' || userRole === 'raid_manager';
 
         const today = new Date();
         const currentMonthYear = today.getFullYear() * 100 + (today.getMonth() + 1);
@@ -2746,10 +2760,10 @@ app.post('/api/monthly-jobs/register', async (req, res) => {
 
         if (existing.rows.length > 0) {
             // Registration exists - check if locked
-            if (existing.rows[0].locked && !is_admin) {
+            if (existing.rows[0].locked && !isAdmin) {
                 await client.query('ROLLBACK');
                 return res.status(403).json({
-                    error: 'Job already locked for this month. Only admins can change it.'
+                    error: 'Nice Try'
                 });
             }
 
