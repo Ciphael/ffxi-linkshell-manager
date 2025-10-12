@@ -2631,6 +2631,275 @@ app.get('/api/ls-shop/transactions', async (req, res) => {
     }
 });
 
+// ============ MONTHLY JOB REGISTRATION ENDPOINTS ============
+
+// Helper function to calculate consecutive months and multiplier
+async function calculateJobMultiplier(client, userId, currentMonthYear, newJob) {
+    // Get previous month's registration
+    let previousMonth = currentMonthYear - 1;
+    if (currentMonthYear % 100 === 1) {
+        // If current month is January (01), previous month is December of last year
+        const year = Math.floor(currentMonthYear / 100) - 1;
+        previousMonth = year * 100 + 12;
+    }
+
+    const prevResult = await client.query(
+        `SELECT job, consecutive_months FROM monthly_job_registrations
+         WHERE user_id = $1 AND month_year = $2`,
+        [userId, previousMonth]
+    );
+
+    let consecutiveMonths = 1;
+    let multiplier = 1.00;
+
+    if (prevResult.rows.length > 0 && prevResult.rows[0].job === newJob) {
+        // Same job as previous month, increment consecutive counter
+        consecutiveMonths = prevResult.rows[0].consecutive_months + 1;
+
+        // Calculate multiplier based on consecutive months
+        if (consecutiveMonths === 2) multiplier = 1.25;
+        else if (consecutiveMonths === 3) multiplier = 1.50;
+        else if (consecutiveMonths >= 4) multiplier = 1.75;
+    }
+
+    return { consecutiveMonths, multiplier };
+}
+
+// Get current month's job registration for current user
+app.get('/api/monthly-jobs/current', async (req, res) => {
+    try {
+        const userId = req.query.user_id;
+        if (!userId) {
+            return res.status(400).json({ error: 'user_id is required' });
+        }
+
+        const today = new Date();
+        const currentMonthYear = today.getFullYear() * 100 + (today.getMonth() + 1);
+
+        const result = await pool.query(
+            `SELECT * FROM monthly_job_registrations
+             WHERE user_id = $1 AND month_year = $2`,
+            [userId, currentMonthYear]
+        );
+
+        if (result.rows.length === 0) {
+            res.json({ registration: null, canChange: true });
+        } else {
+            res.json({
+                registration: result.rows[0],
+                canChange: !result.rows[0].locked
+            });
+        }
+    } catch (error) {
+        console.error('Error fetching current job:', error);
+        res.status(500).json({ error: 'Failed to fetch current job' });
+    }
+});
+
+// Get job history for current user
+app.get('/api/monthly-jobs/history', async (req, res) => {
+    try {
+        const userId = req.query.user_id;
+        if (!userId) {
+            return res.status(400).json({ error: 'user_id is required' });
+        }
+
+        const result = await pool.query(
+            `SELECT
+                mjr.*,
+                u.character_name as updated_by_name
+             FROM monthly_job_registrations mjr
+             LEFT JOIN users u ON mjr.updated_by = u.id
+             WHERE mjr.user_id = $1
+             ORDER BY mjr.month_year DESC`,
+            [userId]
+        );
+
+        res.json(result.rows);
+    } catch (error) {
+        console.error('Error fetching job history:', error);
+        res.status(500).json({ error: 'Failed to fetch job history' });
+    }
+});
+
+// Register or update job for current month
+app.post('/api/monthly-jobs/register', async (req, res) => {
+    const client = await pool.connect();
+    try {
+        const { user_id, job, is_admin } = req.body;
+
+        if (!user_id || !job) {
+            return res.status(400).json({ error: 'user_id and job are required' });
+        }
+
+        await client.query('BEGIN');
+
+        const today = new Date();
+        const currentMonthYear = today.getFullYear() * 100 + (today.getMonth() + 1);
+
+        // Check if registration already exists
+        const existing = await client.query(
+            `SELECT * FROM monthly_job_registrations
+             WHERE user_id = $1 AND month_year = $2`,
+            [user_id, currentMonthYear]
+        );
+
+        if (existing.rows.length > 0) {
+            // Registration exists - check if locked
+            if (existing.rows[0].locked && !is_admin) {
+                await client.query('ROLLBACK');
+                return res.status(403).json({
+                    error: 'Job already locked for this month. Only admins can change it.'
+                });
+            }
+
+            // Calculate new multiplier if job changed
+            const { consecutiveMonths, multiplier } =
+                await calculateJobMultiplier(client, user_id, currentMonthYear, job);
+
+            // Update existing registration
+            const result = await client.query(
+                `UPDATE monthly_job_registrations
+                 SET job = $1, consecutive_months = $2, multiplier = $3,
+                     locked = true, updated_by = $4, updated_at = NOW()
+                 WHERE user_id = $5 AND month_year = $6
+                 RETURNING *`,
+                [job, consecutiveMonths, multiplier, user_id, user_id, currentMonthYear]
+            );
+
+            await client.query('COMMIT');
+            res.json({ success: true, registration: result.rows[0] });
+        } else {
+            // Create new registration
+            const { consecutiveMonths, multiplier } =
+                await calculateJobMultiplier(client, user_id, currentMonthYear, job);
+
+            const result = await client.query(
+                `INSERT INTO monthly_job_registrations
+                 (user_id, month_year, job, consecutive_months, multiplier, locked, updated_by)
+                 VALUES ($1, $2, $3, $4, $5, true, $6)
+                 RETURNING *`,
+                [user_id, currentMonthYear, job, consecutiveMonths, multiplier, user_id]
+            );
+
+            await client.query('COMMIT');
+            res.json({ success: true, registration: result.rows[0] });
+        }
+    } catch (error) {
+        await client.query('ROLLBACK');
+        console.error('Error registering job:', error);
+        res.status(500).json({ error: 'Failed to register job' });
+    } finally {
+        client.release();
+    }
+});
+
+// Admin: Get all users' job registrations (grid data)
+app.get('/api/monthly-jobs/all', async (req, res) => {
+    try {
+        const result = await pool.query(`
+            SELECT
+                u.id as user_id,
+                u.character_name,
+                mjr.month_year,
+                mjr.job,
+                mjr.consecutive_months,
+                mjr.multiplier,
+                mjr.locked
+            FROM users u
+            LEFT JOIN monthly_job_registrations mjr ON u.id = mjr.user_id
+            WHERE u.role IN ('member', 'raid_manager', 'admin')
+            ORDER BY u.character_name, mjr.month_year DESC
+        `);
+
+        res.json(result.rows);
+    } catch (error) {
+        console.error('Error fetching all job registrations:', error);
+        res.status(500).json({ error: 'Failed to fetch job registrations' });
+    }
+});
+
+// Admin: Update any user's job registration
+app.put('/api/monthly-jobs/admin-update', async (req, res) => {
+    const client = await pool.connect();
+    try {
+        const { user_id, month_year, job, admin_id } = req.body;
+
+        if (!user_id || !month_year || !job || !admin_id) {
+            return res.status(400).json({ error: 'Missing required fields' });
+        }
+
+        await client.query('BEGIN');
+
+        // Calculate new multiplier
+        const { consecutiveMonths, multiplier } =
+            await calculateJobMultiplier(client, user_id, month_year, job);
+
+        // Check if registration exists
+        const existing = await client.query(
+            `SELECT id FROM monthly_job_registrations
+             WHERE user_id = $1 AND month_year = $2`,
+            [user_id, month_year]
+        );
+
+        let result;
+        if (existing.rows.length > 0) {
+            // Update existing
+            result = await client.query(
+                `UPDATE monthly_job_registrations
+                 SET job = $1, consecutive_months = $2, multiplier = $3,
+                     locked = true, updated_by = $4, updated_at = NOW()
+                 WHERE user_id = $5 AND month_year = $6
+                 RETURNING *`,
+                [job, consecutiveMonths, multiplier, admin_id, user_id, month_year]
+            );
+        } else {
+            // Create new
+            result = await client.query(
+                `INSERT INTO monthly_job_registrations
+                 (user_id, month_year, job, consecutive_months, multiplier, locked, updated_by)
+                 VALUES ($1, $2, $3, $4, $5, true, $6)
+                 RETURNING *`,
+                [user_id, month_year, job, consecutiveMonths, multiplier, admin_id]
+            );
+        }
+
+        await client.query('COMMIT');
+        res.json({ success: true, registration: result.rows[0] });
+    } catch (error) {
+        await client.query('ROLLBACK');
+        console.error('Error updating job registration:', error);
+        res.status(500).json({ error: 'Failed to update job registration' });
+    } finally {
+        client.release();
+    }
+});
+
+// Get current multiplier for a user (used in point calculations)
+app.get('/api/monthly-jobs/multiplier/:userId', async (req, res) => {
+    try {
+        const userId = req.params.userId;
+        const today = new Date();
+        const currentMonthYear = today.getFullYear() * 100 + (today.getMonth() + 1);
+
+        const result = await pool.query(
+            `SELECT multiplier, consecutive_months, job
+             FROM monthly_job_registrations
+             WHERE user_id = $1 AND month_year = $2`,
+            [userId, currentMonthYear]
+        );
+
+        if (result.rows.length === 0) {
+            res.json({ multiplier: 1.00, consecutive_months: 0, job: null });
+        } else {
+            res.json(result.rows[0]);
+        }
+    } catch (error) {
+        console.error('Error fetching multiplier:', error);
+        res.status(500).json({ error: 'Failed to fetch multiplier' });
+    }
+});
+
 // Health check for Railway
 app.get('/health', (req, res) => {
     res.status(200).json({ status: 'healthy' });
