@@ -419,6 +419,42 @@ app.get('/api/market-rates', async (req, res) => {
     }
 });
 
+// Debug endpoint to check item_usable table
+app.get('/api/debug/item-usable', async (req, res) => {
+    try {
+        // Check if table exists
+        const tableCheck = await pool.query(`
+            SELECT table_name
+            FROM information_schema.tables
+            WHERE table_schema = 'public' AND table_name = 'item_usable'
+        `);
+
+        if (tableCheck.rows.length === 0) {
+            return res.json({ exists: false, message: 'item_usable table does not exist' });
+        }
+
+        // Get column information
+        const columnInfo = await pool.query(`
+            SELECT column_name, data_type
+            FROM information_schema.columns
+            WHERE table_schema = 'public' AND table_name = 'item_usable'
+            ORDER BY ordinal_position
+        `);
+
+        // Get sample row
+        const sampleData = await pool.query(`SELECT * FROM item_usable WHERE activation = 3 LIMIT 1`);
+
+        res.json({
+            exists: true,
+            columns: columnInfo.rows,
+            sampleRow: sampleData.rows[0] || null
+        });
+    } catch (error) {
+        console.error('Error checking item_usable:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
 // Update market rates for items
 app.put('/api/market-rates/:itemId', async (req, res) => {
     try {
