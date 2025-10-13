@@ -384,7 +384,9 @@ app.get('/api/market-rates', async (req, res) => {
                 ic.estimated_value,
                 ic.convertible,
                 ic.converts_to_item_name,
-                COALESCE(m.mob_name, 'Unknown Boss') as mob_name
+                COALESCE(m.mob_name, 'Unknown Boss') as mob_name,
+                ib.is_rare,
+                ib.is_ex
             FROM mob_droplist md
             LEFT JOIN item_equipment ie ON md.itemId = ie.itemid
             LEFT JOIN item_weapon iw ON md.itemId = iw.itemid
@@ -468,10 +470,13 @@ app.get('/api/bosses/:bossId/planned-drops', async (req, res) => {
                 ic.points_required,
                 ic.market_rate,
                 ic.convertible,
-                ic.converts_to_item_name
+                ic.converts_to_item_name,
+                ib.is_rare,
+                ib.is_ex
             FROM planned_event_drops ped
             LEFT JOIN users u ON ped.won_by = u.id
             LEFT JOIN item_classifications ic ON ped.item_id = ic.item_id
+            LEFT JOIN item_basic ib ON ped.item_id = ib.itemid
             WHERE ped.event_boss_id = $1
             ORDER BY ped.drop_rate DESC, ped.item_name
         `;
@@ -558,7 +563,9 @@ app.get('/api/mob-droplist/:mobDropId/all-drops', async (req, res) => {
                 ic.points_required,
                 ic.market_rate,
                 ic.convertible,
-                ic.converts_to_item_name
+                ic.converts_to_item_name,
+                ib.is_rare,
+                ib.is_ex
             FROM mob_droplist md
             LEFT JOIN item_equipment ie ON md.itemId = ie.itemid
             LEFT JOIN item_weapon iw ON md.itemId = iw.itemid
