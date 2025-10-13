@@ -14,82 +14,87 @@ CREATE INDEX IF NOT EXISTS idx_item_classifications_converts_to ON item_classifi
 -- Populate Dryadic Abjurations -> Zenith gear
 UPDATE item_classifications ic
 SET converts_to_item_id = (SELECT itemid FROM item_basic WHERE name = 'zenith_crown')
-WHERE item_id = (SELECT itemid FROM item_basic WHERE name = 'dryadic_abjuration:_head');
+WHERE item_id = (SELECT itemid FROM item_basic WHERE name = 'dryadic_abjuration_head');
 
 UPDATE item_classifications ic
 SET converts_to_item_id = (SELECT itemid FROM item_basic WHERE name = 'zenith_mitts')
-WHERE item_id = (SELECT itemid FROM item_basic WHERE name = 'dryadic_abjuration:_hands');
+WHERE item_id = (SELECT itemid FROM item_basic WHERE name = 'dryadic_abjuration_hands');
 
 UPDATE item_classifications ic
 SET converts_to_item_id = (SELECT itemid FROM item_basic WHERE name = 'zenith_slacks')
-WHERE item_id = (SELECT itemid FROM item_basic WHERE name = 'dryadic_abjuration:_legs');
+WHERE item_id = (SELECT itemid FROM item_basic WHERE name = 'dryadic_abjuration_legs');
 
 UPDATE item_classifications ic
 SET converts_to_item_id = (SELECT itemid FROM item_basic WHERE name = 'zenith_pumps')
-WHERE item_id = (SELECT itemid FROM item_basic WHERE name = 'dryadic_abjuration:_feet');
+WHERE item_id = (SELECT itemid FROM item_basic WHERE name = 'dryadic_abjuration_feet');
 
 -- Populate Wyrmal Abjurations -> Crimson gear (standard versions)
 UPDATE item_classifications ic
 SET converts_to_item_id = (SELECT itemid FROM item_basic WHERE name = 'crimson_mask')
-WHERE item_id = (SELECT itemid FROM item_basic WHERE name = 'wyrmal_abjuration:_head');
+WHERE item_id = (SELECT itemid FROM item_basic WHERE name = 'wyrmal_abjuration_head');
 
 UPDATE item_classifications ic
 SET converts_to_item_id = (SELECT itemid FROM item_basic WHERE name = 'crimson_scale_mail')
-WHERE item_id = (SELECT itemid FROM item_basic WHERE name = 'wyrmal_abjuration:_body');
+WHERE item_id = (SELECT itemid FROM item_basic WHERE name = 'wyrmal_abjuration_body');
 
 UPDATE item_classifications ic
 SET converts_to_item_id = (SELECT itemid FROM item_basic WHERE name = 'crimson_finger_gauntlets')
-WHERE item_id = (SELECT itemid FROM item_basic WHERE name = 'wyrmal_abjuration:_hands');
+WHERE item_id = (SELECT itemid FROM item_basic WHERE name = 'wyrmal_abjuration_hands');
 
 UPDATE item_classifications ic
 SET converts_to_item_id = (SELECT itemid FROM item_basic WHERE name = 'crimson_cuisses')
-WHERE item_id = (SELECT itemid FROM item_basic WHERE name = 'wyrmal_abjuration:_legs');
+WHERE item_id = (SELECT itemid FROM item_basic WHERE name = 'wyrmal_abjuration_legs');
 
 UPDATE item_classifications ic
 SET converts_to_item_id = (SELECT itemid FROM item_basic WHERE name = 'crimson_greaves')
-WHERE item_id = (SELECT itemid FROM item_basic WHERE name = 'wyrmal_abjuration:_feet');
+WHERE item_id = (SELECT itemid FROM item_basic WHERE name = 'wyrmal_abjuration_feet');
+
+-- Populate Dryadic Body -> Shura Togi (Zenith has no body piece)
+UPDATE item_classifications ic
+SET converts_to_item_id = (SELECT itemid FROM item_basic WHERE name = 'shura_togi')
+WHERE item_id = (SELECT itemid FROM item_basic WHERE name = 'dryadic_abjuration_body');
 
 -- Populate Martial Abjurations -> Shura gear
 UPDATE item_classifications ic
 SET converts_to_item_id = (SELECT itemid FROM item_basic WHERE name = 'shura_zunari_kabuto')
-WHERE item_id = (SELECT itemid FROM item_basic WHERE name = 'martial_abjuration:_head');
+WHERE item_id = (SELECT itemid FROM item_basic WHERE name = 'martial_abjuration_head');
 
 UPDATE item_classifications ic
 SET converts_to_item_id = (SELECT itemid FROM item_basic WHERE name = 'shura_togi')
-WHERE item_id = (SELECT itemid FROM item_basic WHERE name = 'martial_abjuration:_body');
+WHERE item_id = (SELECT itemid FROM item_basic WHERE name = 'martial_abjuration_body');
 
 UPDATE item_classifications ic
-SET converts_to_item_id = (SELECT itemid FROM item_basic WHERE name = 'shura_tekko')
-WHERE item_id = (SELECT itemid FROM item_basic WHERE name = 'martial_abjuration:_hands');
+SET converts_to_item_id = (SELECT itemid FROM item_basic WHERE name = 'shura_kote')
+WHERE item_id = (SELECT itemid FROM item_basic WHERE name = 'martial_abjuration_hands');
 
 UPDATE item_classifications ic
 SET converts_to_item_id = (SELECT itemid FROM item_basic WHERE name = 'shura_haidate')
-WHERE item_id = (SELECT itemid FROM item_basic WHERE name = 'martial_abjuration:_legs');
+WHERE item_id = (SELECT itemid FROM item_basic WHERE name = 'martial_abjuration_legs');
 
 UPDATE item_classifications ic
 SET converts_to_item_id = (SELECT itemid FROM item_basic WHERE name = 'shura_sune-ate')
-WHERE item_id = (SELECT itemid FROM item_basic WHERE name = 'martial_abjuration:_feet');
+WHERE item_id = (SELECT itemid FROM item_basic WHERE name = 'martial_abjuration_feet');
 
 -- Populate Neptunal Abjurations -> Hecatomb gear
 UPDATE item_classifications ic
 SET converts_to_item_id = (SELECT itemid FROM item_basic WHERE name = 'hecatomb_cap')
-WHERE item_id = (SELECT itemid FROM item_basic WHERE name = 'neptunal_abjuration:_head');
+WHERE item_id = (SELECT itemid FROM item_basic WHERE name = 'neptunal_abjuration_head');
 
 UPDATE item_classifications ic
 SET converts_to_item_id = (SELECT itemid FROM item_basic WHERE name = 'hecatomb_harness')
-WHERE item_id = (SELECT itemid FROM item_basic WHERE name = 'neptunal_abjuration:_body');
+WHERE item_id = (SELECT itemid FROM item_basic WHERE name = 'neptunal_abjuration_body');
 
 UPDATE item_classifications ic
 SET converts_to_item_id = (SELECT itemid FROM item_basic WHERE name = 'hecatomb_mittens')
-WHERE item_id = (SELECT itemid FROM item_basic WHERE name = 'neptunal_abjuration:_hands');
+WHERE item_id = (SELECT itemid FROM item_basic WHERE name = 'neptunal_abjuration_hands');
 
 UPDATE item_classifications ic
 SET converts_to_item_id = (SELECT itemid FROM item_basic WHERE name = 'hecatomb_subligar')
-WHERE item_id = (SELECT itemid FROM item_basic WHERE name = 'neptunal_abjuration:_legs');
+WHERE item_id = (SELECT itemid FROM item_basic WHERE name = 'neptunal_abjuration_legs');
 
 UPDATE item_classifications ic
 SET converts_to_item_id = (SELECT itemid FROM item_basic WHERE name = 'hecatomb_leggings')
-WHERE item_id = (SELECT itemid FROM item_basic WHERE name = 'neptunal_abjuration:_feet');
+WHERE item_id = (SELECT itemid FROM item_basic WHERE name = 'neptunal_abjuration_feet');
 
 COMMENT ON COLUMN item_classifications.converts_to_item_id IS 'For abjurations: item_id of the standard gear it creates (HQ versions derived from that item''s enhanced_X_id)';
 
