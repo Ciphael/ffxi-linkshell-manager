@@ -1,0 +1,117 @@
+-- Converted from AirSkyBoat MySQL to PostgreSQL
+-- Source: item_mods.sql
+-- Filtered: Only items with level < 76
+-- Date: 2025-10-13T02:17:18.588Z
+
+DROP TABLE IF EXISTS "item_mods";
+CREATE TABLE "item_mods" (
+  "itemId" INTEGER NOT NULL,
+  "modId" SMALLINT NOT NULL,
+  "value" SMALLINT NOT NULL,
+  PRIMARY KEY ("itemId", "modId")
+);
+
+INSERT INTO "item_mods" VALUES (10250, 1, 1);
+INSERT INTO "item_mods" VALUES (10251, 1, 1);
+INSERT INTO "item_mods" VALUES (10252, 1, 1);
+INSERT INTO "item_mods" VALUES (10253, 1, 2);
+INSERT INTO "item_mods" VALUES (10254, 1, 2);
+INSERT INTO "item_mods" VALUES (10256, 1, 1);
+INSERT INTO "item_mods" VALUES (10257, 1, 1);
+INSERT INTO "item_mods" VALUES (10258, 1, 1);
+INSERT INTO "item_mods" VALUES (10259, 1, 1);
+INSERT INTO "item_mods" VALUES (10260, 1, 1);
+INSERT INTO "item_mods" VALUES (10261, 1, 1);
+INSERT INTO "item_mods" VALUES (10262, 1, 1);
+INSERT INTO "item_mods" VALUES (10263, 1, 1);
+INSERT INTO "item_mods" VALUES (10264, 1, 2);
+INSERT INTO "item_mods" VALUES (10265, 1, 2);
+INSERT INTO "item_mods" VALUES (10266, 1, 2);
+INSERT INTO "item_mods" VALUES (10267, 1, 2);
+INSERT INTO "item_mods" VALUES (10268, 1, 2);
+INSERT INTO "item_mods" VALUES (10269, 1, 2);
+INSERT INTO "item_mods" VALUES (10270, 1, 2);
+INSERT INTO "item_mods" VALUES (10271, 1, 2);
+INSERT INTO "item_mods" VALUES (10293, 1, 2);
+INSERT INTO "item_mods" VALUES (10330, 1, 1);
+INSERT INTO "item_mods" VALUES (10331, 1, 1);
+INSERT INTO "item_mods" VALUES (10332, 1, 1);
+INSERT INTO "item_mods" VALUES (10333, 1, 1);
+INSERT INTO "item_mods" VALUES (10334, 1, 1);
+INSERT INTO "item_mods" VALUES (10335, 1, 1);
+INSERT INTO "item_mods" VALUES (10336, 1, 1);
+INSERT INTO "item_mods" VALUES (10337, 1, 1);
+INSERT INTO "item_mods" VALUES (10338, 1, 2);
+INSERT INTO "item_mods" VALUES (10339, 1, 2);
+INSERT INTO "item_mods" VALUES (10340, 1, 2);
+INSERT INTO "item_mods" VALUES (10341, 1, 2);
+INSERT INTO "item_mods" VALUES (10342, 1, 2);
+INSERT INTO "item_mods" VALUES (10343, 1, 2);
+INSERT INTO "item_mods" VALUES (10344, 1, 2);
+INSERT INTO "item_mods" VALUES (10345, 1, 2);
+INSERT INTO "item_mods" VALUES (10382, 1, 1);
+INSERT INTO "item_mods" VALUES (10383, 1, 2);
+INSERT INTO "item_mods" VALUES (10383, 947, 30);
+INSERT INTO "item_mods" VALUES (10384, 1, 1);
+INSERT INTO "item_mods" VALUES (10385, 1, 2);
+INSERT INTO "item_mods" VALUES (10429, 1, 1);
+INSERT INTO "item_mods" VALUES (10430, 1, 1);
+INSERT INTO "item_mods" VALUES (10431, 1, 1);
+INSERT INTO "item_mods" VALUES (10432, 1, 2);
+INSERT INTO "item_mods" VALUES (10433, 1, 2);
+INSERT INTO "item_mods" VALUES (10446, 22, 5);
+INSERT INTO "item_mods" VALUES (10593, 1, 1);
+INSERT INTO "item_mods" VALUES (16385, 25, 3);
+INSERT INTO "item_mods" VALUES (16386, 25, 3);
+INSERT INTO "item_mods" VALUES (16387, 25, 3);
+INSERT INTO "item_mods" VALUES (16387, 431, 2);
+INSERT INTO "item_mods" VALUES (16387, 499, 10);
+INSERT INTO "item_mods" VALUES (16387, 501, 10);
+INSERT INTO "item_mods" VALUES (16387, 951, 3);
+INSERT INTO "item_mods" VALUES (16387, 952, 4);
+INSERT INTO "item_mods" VALUES (16387, 953, 30);
+INSERT INTO "item_mods" VALUES (16388, 25, 3);
+INSERT INTO "item_mods" VALUES (16389, 9, 1);
+INSERT INTO "item_mods" VALUES (16389, 11, 1);
+INSERT INTO "item_mods" VALUES (16389, 25, 3);
+INSERT INTO "item_mods" VALUES (16390, 25, 2);
+INSERT INTO "item_mods" VALUES (16391, 25, 2);
+INSERT INTO "item_mods" VALUES (16392, 25, 2);
+INSERT INTO "item_mods" VALUES (16393, 25, 2);
+INSERT INTO "item_mods" VALUES (16394, 25, 2);
+INSERT INTO "item_mods" VALUES (16395, 10, 2);
+INSERT INTO "item_mods" VALUES (16395, 25, 2);
+INSERT INTO "item_mods" VALUES (16396, 14, 2);
+INSERT INTO "item_mods" VALUES (16396, 25, 2);
+INSERT INTO "item_mods" VALUES (16397, 2, 15);
+INSERT INTO "item_mods" VALUES (16397, 25, 3);
+INSERT INTO "item_mods" VALUES (16398, 25, 3);
+INSERT INTO "item_mods" VALUES (16398, 431, 1);
+INSERT INTO "item_mods" VALUES (16398, 499, 1);
+INSERT INTO "item_mods" VALUES (16398, 500, 10);
+INSERT INTO "item_mods" VALUES (16398, 501, 5);
+INSERT INTO "item_mods" VALUES (16398, 950, 1);
+INSERT INTO "item_mods" VALUES (16403, 431, 2);
+INSERT INTO "item_mods" VALUES (16403, 499, 10);
+INSERT INTO "item_mods" VALUES (16403, 501, 10);
+INSERT INTO "item_mods" VALUES (16403, 951, 3);
+INSERT INTO "item_mods" VALUES (16403, 952, 4);
+INSERT INTO "item_mods" VALUES (16403, 953, 30);
+INSERT INTO "item_mods" VALUES (16404, 431, 2);
+INSERT INTO "item_mods" VALUES (16404, 499, 10);
+INSERT INTO "item_mods" VALUES (16404, 501, 10);
+INSERT INTO "item_mods" VALUES (16404, 951, 3);
+INSERT INTO "item_mods" VALUES (16404, 952, 4);
+INSERT INTO "item_mods" VALUES (16404, 953, 30);
+INSERT INTO "item_mods" VALUES (16410, 431, 2);
+INSERT INTO "item_mods" VALUES (16410, 499, 10);
+INSERT INTO "item_mods" VALUES (16410, 501, 10);
+INSERT INTO "item_mods" VALUES (16410, 951, 3);
+INSERT INTO "item_mods" VALUES (16410, 952, 4);
+INSERT INTO "item_mods" VALUES (16410, 953, 30);
+INSERT INTO "item_mods" VALUES (16416, 15, 5);
+INSERT INTO "item_mods" VALUES (16416, 431, 1);
+INSERT INTO "item_mods" VALUES (16416, 499, 1);
+INSERT INTO "item_mods" VALUES (16416, 500, 9);
+INSERT INTO "item_mods" VALUES (16416, 501, 10);
+INSERT INTO "item_mods" VALUES (16416, 950, 1);

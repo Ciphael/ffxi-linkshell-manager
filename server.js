@@ -1591,24 +1591,33 @@ app.get('/api/items', async (req, res) => {
         const { search, slot, minLevel, maxLevel, limit = 100 } = req.query;
         
         let query = `
-            SELECT 
+            SELECT
                 ie.itemid,
                 ie.name,
                 ie.level,
                 ie.slot,
                 ie.jobs,
+                ib.is_rare,
+                ib.is_ex,
                 STRING_AGG(
-                    COALESCE(m.name, 'Mod' || im.modid) || ': ' || 
-                    CASE 
-                        WHEN im.value > 0 AND COALESCE(m.name, '') NOT IN ('DEF', 'DMG', 'DELAY') 
-                        THEN '+' 
-                        ELSE '' 
-                    END || im.value,
+                    CASE
+                        WHEN im.modid IN (355, 356) THEN
+                            COALESCE(m.name, 'ADDS_WEAPONSKILL') || ': ' || COALESCE(ws.name, 'Unknown')
+                        ELSE
+                            COALESCE(m.name, 'Mod' || im.modid) || ': ' ||
+                            CASE
+                                WHEN im.value > 0 AND COALESCE(m.name, '') NOT IN ('DEF', 'DMG', 'DELAY')
+                                THEN '+'
+                                ELSE ''
+                            END || im.value
+                    END,
                     ', ' ORDER BY im.modid
                 ) AS stats
             FROM item_equipment ie
+            LEFT JOIN item_basic ib ON ie.itemid = ib.itemid
             LEFT JOIN item_mods im ON ie.itemid = im.itemid
             LEFT JOIN mods m ON im.modid = m.modid
+            LEFT JOIN weapon_skills ws ON im.modid IN (355, 356) AND im.value = ws.weaponskillid
             WHERE 1=1
         `;
         
@@ -1634,7 +1643,7 @@ app.get('/api/items', async (req, res) => {
             query += ` AND ie.level <= $${params.length}`;
         }
         
-        query += ` GROUP BY ie.itemid, ie.name, ie.level, ie.slot, ie.jobs
+        query += ` GROUP BY ie.itemid, ie.name, ie.level, ie.slot, ie.jobs, ib.is_rare, ib.is_ex
                    ORDER BY ie.level DESC, ie.name`;
         
         params.push(limit);
@@ -1779,25 +1788,34 @@ app.get('/api/weapons', async (req, res) => {
         const { search, skill, limit = 100 } = req.query;
         
         let query = `
-            SELECT 
+            SELECT
                 iw.itemid,
                 iw.name,
                 iw.skill,
                 iw.dmg,
                 iw.delay,
                 ROUND((iw.dmg::numeric / NULLIF(iw.delay, 0) * 60), 2) AS dps,
+                ib.is_rare,
+                ib.is_ex,
                 STRING_AGG(
-                    COALESCE(m.name, 'Mod' || im.modid) || ': ' || 
-                    CASE 
-                        WHEN im.value > 0 AND COALESCE(m.name, '') NOT IN ('DMG', 'DELAY') 
-                        THEN '+' 
-                        ELSE '' 
-                    END || im.value,
+                    CASE
+                        WHEN im.modid IN (355, 356) THEN
+                            COALESCE(m.name, 'ADDS_WEAPONSKILL') || ': ' || COALESCE(ws.name, 'Unknown')
+                        ELSE
+                            COALESCE(m.name, 'Mod' || im.modid) || ': ' ||
+                            CASE
+                                WHEN im.value > 0 AND COALESCE(m.name, '') NOT IN ('DMG', 'DELAY')
+                                THEN '+'
+                                ELSE ''
+                            END || im.value
+                    END,
                     ', ' ORDER BY im.modid
                 ) AS additional_stats
             FROM item_weapon iw
+            LEFT JOIN item_basic ib ON iw.itemid = ib.itemid
             LEFT JOIN item_mods im ON iw.itemid = im.itemid
             LEFT JOIN mods m ON im.modid = m.modid
+            LEFT JOIN weapon_skills ws ON im.modid IN (355, 356) AND im.value = ws.weaponskillid
             WHERE 1=1
         `;
         
@@ -1813,7 +1831,7 @@ app.get('/api/weapons', async (req, res) => {
             query += ` AND iw.skill = $${params.length}`;
         }
         
-        query += ` GROUP BY iw.itemid, iw.name, iw.skill, iw.dmg, iw.delay
+        query += ` GROUP BY iw.itemid, iw.name, iw.skill, iw.dmg, iw.delay, ib.is_rare, ib.is_ex
                    ORDER BY iw.dmg DESC`;
         
         params.push(limit);
