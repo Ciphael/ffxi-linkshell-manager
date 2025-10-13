@@ -396,9 +396,6 @@ app.get('/api/market-rates', async (req, res) => {
                 iw.delay as weapon_delay,
                 iw.dmg as weapon_dmg,
                 iw."dmgType" as weapon_dmg_type,
-                iu."maxCharges" as enchantment_charges,
-                iu."useDelay" as enchantment_use_delay,
-                iu."reuseDelay" as enchantment_reuse_delay,
                 (
                     SELECT json_agg(json_build_object('modId', "modId", 'value', value))
                     FROM item_mods im
@@ -408,7 +405,6 @@ app.get('/api/market-rates', async (req, res) => {
             LEFT JOIN item_equipment ie ON md.itemId = ie."itemId"
             LEFT JOIN item_weapon iw ON md.itemId = iw."itemId"
             LEFT JOIN item_basic ib ON md.itemId = ib.itemid
-            LEFT JOIN item_usable iu ON md.itemId = iu.itemid
             LEFT JOIN item_classifications ic ON md.itemId = ic.item_id
             LEFT JOIN mobs m ON md.dropId = m.dropid
             WHERE md.dropType IN (0, 1, 4) AND m.mob_name IS NOT NULL
