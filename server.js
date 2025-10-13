@@ -161,8 +161,8 @@ async function createPlannedDropsForBoss(eventId, eventBossId, mobDropId) {
                 ic.classification,
                 ic.estimated_value
             FROM mob_droplist md
-            LEFT JOIN item_equipment ie ON md.itemId = ie.itemid
-            LEFT JOIN item_weapon iw ON md.itemId = iw.itemid
+            LEFT JOIN item_equipment ie ON md.itemId = ie.itemId
+            LEFT JOIN item_weapon iw ON md.itemId = iw.itemId
             LEFT JOIN item_basic ib ON md.itemId = ib.itemid
             LEFT JOIN item_classifications ic ON md.itemId = ic.item_id
             WHERE md.dropId = $1
@@ -388,8 +388,8 @@ app.get('/api/market-rates', async (req, res) => {
                 ib.is_rare,
                 ib.is_ex
             FROM mob_droplist md
-            LEFT JOIN item_equipment ie ON md.itemId = ie.itemid
-            LEFT JOIN item_weapon iw ON md.itemId = iw.itemid
+            LEFT JOIN item_equipment ie ON md.itemId = ie.itemId
+            LEFT JOIN item_weapon iw ON md.itemId = iw.itemId
             LEFT JOIN item_basic ib ON md.itemId = ib.itemid
             LEFT JOIN item_classifications ic ON md.itemId = ic.item_id
             LEFT JOIN mobs m ON md.dropId = m.dropid
@@ -567,8 +567,8 @@ app.get('/api/mob-droplist/:mobDropId/all-drops', async (req, res) => {
                 ib.is_rare,
                 ib.is_ex
             FROM mob_droplist md
-            LEFT JOIN item_equipment ie ON md.itemId = ie.itemid
-            LEFT JOIN item_weapon iw ON md.itemId = iw.itemid
+            LEFT JOIN item_equipment ie ON md.itemId = ie.itemId
+            LEFT JOIN item_weapon iw ON md.itemId = iw.itemId
             LEFT JOIN item_basic ib ON md.itemId = ib.itemid
             LEFT JOIN item_classifications ic ON md.itemId = ic.item_id
             WHERE md.dropId = $1
@@ -915,8 +915,8 @@ app.get('/api/mobs/:dropId/drops', async (req, res) => {
                 md.groupId,
                 md.groupRate
             FROM mob_droplist md
-            LEFT JOIN item_equipment ie ON md.itemId = ie.itemid
-            LEFT JOIN item_weapon iw ON md.itemId = iw.itemid
+            LEFT JOIN item_equipment ie ON md.itemId = ie.itemId
+            LEFT JOIN item_weapon iw ON md.itemId = iw.itemId
             LEFT JOIN item_basic ib ON md.itemId = ib.itemid
             WHERE md.dropId = $1
             ORDER BY md.dropType, md.groupId, md.itemRate DESC
