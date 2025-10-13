@@ -1640,10 +1640,10 @@ app.get('/api/reports/sold-items', async (req, res) => {
 app.get('/api/items', async (req, res) => {
     try {
         const { search, slot, minLevel, maxLevel, limit = 100 } = req.query;
-        
+
         let query = `
             SELECT
-                ie.itemid,
+                ie."itemId",
                 ie.name,
                 ie.level,
                 ie.slot,
@@ -1652,38 +1652,38 @@ app.get('/api/items', async (req, res) => {
                 ib.is_ex,
                 STRING_AGG(
                     CASE
-                        WHEN im.modid IN (355, 356) THEN
+                        WHEN im."modId" IN (355, 356) THEN
                             COALESCE(m.name, 'ADDS_WEAPONSKILL') || ': ' || COALESCE(ws.name, 'Unknown')
                         ELSE
-                            COALESCE(m.name, 'Mod' || im.modid) || ': ' ||
+                            COALESCE(m.name, 'Mod' || im."modId") || ': ' ||
                             CASE
                                 WHEN im.value > 0 AND COALESCE(m.name, '') NOT IN ('DEF', 'DMG', 'DELAY')
                                 THEN '+'
                                 ELSE ''
                             END || im.value
                     END,
-                    ', ' ORDER BY im.modid
+                    ', ' ORDER BY im."modId"
                 ) AS stats
             FROM item_equipment ie
-            LEFT JOIN item_basic ib ON ie.itemid = ib.itemid
-            LEFT JOIN item_mods im ON ie.itemid = im.itemid
-            LEFT JOIN mods m ON im.modid = m.modid
-            LEFT JOIN weapon_skills ws ON im.modid IN (355, 356) AND im.value = ws.weaponskillid
+            LEFT JOIN item_basic ib ON ie."itemId" = ib.itemid
+            LEFT JOIN item_mods im ON ie."itemId" = im."itemId"
+            LEFT JOIN mods m ON im."modId" = m.modid
+            LEFT JOIN weapon_skills ws ON im."modId" IN (355, 356) AND im.value = ws.weaponskillid
             WHERE 1=1
         `;
-        
+
         const params = [];
-        
+
         if (search) {
             params.push(`%${search}%`);
             query += ` AND ie.name ILIKE $${params.length}`;
         }
-        
+
         if (slot) {
             params.push(slot);
             query += ` AND ie.slot = $${params.length}`;
         }
-        
+
         if (minLevel) {
             params.push(minLevel);
             query += ` AND ie.level >= $${params.length}`;
@@ -1693,13 +1693,13 @@ app.get('/api/items', async (req, res) => {
             params.push(maxLevel);
             query += ` AND ie.level <= $${params.length}`;
         }
-        
-        query += ` GROUP BY ie.itemid, ie.name, ie.level, ie.slot, ie.jobs, ib.is_rare, ib.is_ex
+
+        query += ` GROUP BY ie."itemId", ie.name, ie.level, ie.slot, ie.jobs, ib.is_rare, ib.is_ex
                    ORDER BY ie.level DESC, ie.name`;
-        
+
         params.push(limit);
         query += ` LIMIT $${params.length}`;
-        
+
         const result = await pool.query(query, params);
         res.json({
             count: result.rows.length,
@@ -1837,10 +1837,10 @@ app.get('/api/mods', async (req, res) => {
 app.get('/api/weapons', async (req, res) => {
     try {
         const { search, skill, limit = 100 } = req.query;
-        
+
         let query = `
             SELECT
-                iw.itemid,
+                iw."itemId",
                 iw.name,
                 iw.skill,
                 iw.dmg,
@@ -1850,44 +1850,44 @@ app.get('/api/weapons', async (req, res) => {
                 ib.is_ex,
                 STRING_AGG(
                     CASE
-                        WHEN im.modid IN (355, 356) THEN
+                        WHEN im."modId" IN (355, 356) THEN
                             COALESCE(m.name, 'ADDS_WEAPONSKILL') || ': ' || COALESCE(ws.name, 'Unknown')
                         ELSE
-                            COALESCE(m.name, 'Mod' || im.modid) || ': ' ||
+                            COALESCE(m.name, 'Mod' || im."modId") || ': ' ||
                             CASE
                                 WHEN im.value > 0 AND COALESCE(m.name, '') NOT IN ('DMG', 'DELAY')
                                 THEN '+'
                                 ELSE ''
                             END || im.value
                     END,
-                    ', ' ORDER BY im.modid
+                    ', ' ORDER BY im."modId"
                 ) AS additional_stats
             FROM item_weapon iw
-            LEFT JOIN item_basic ib ON iw.itemid = ib.itemid
-            LEFT JOIN item_mods im ON iw.itemid = im.itemid
-            LEFT JOIN mods m ON im.modid = m.modid
-            LEFT JOIN weapon_skills ws ON im.modid IN (355, 356) AND im.value = ws.weaponskillid
+            LEFT JOIN item_basic ib ON iw."itemId" = ib.itemid
+            LEFT JOIN item_mods im ON iw."itemId" = im."itemId"
+            LEFT JOIN mods m ON im."modId" = m.modid
+            LEFT JOIN weapon_skills ws ON im."modId" IN (355, 356) AND im.value = ws.weaponskillid
             WHERE 1=1
         `;
-        
+
         const params = [];
-        
+
         if (search) {
             params.push(`%${search}%`);
             query += ` AND iw.name ILIKE $${params.length}`;
         }
-        
+
         if (skill) {
             params.push(skill);
             query += ` AND iw.skill = $${params.length}`;
         }
-        
-        query += ` GROUP BY iw.itemid, iw.name, iw.skill, iw.dmg, iw.delay, ib.is_rare, ib.is_ex
+
+        query += ` GROUP BY iw."itemId", iw.name, iw.skill, iw.dmg, iw.delay, ib.is_rare, ib.is_ex
                    ORDER BY iw.dmg DESC`;
-        
+
         params.push(limit);
         query += ` LIMIT $${params.length}`;
-        
+
         const result = await pool.query(query, params);
         res.json({
             count: result.rows.length,
