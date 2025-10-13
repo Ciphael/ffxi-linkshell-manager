@@ -403,7 +403,12 @@ app.get('/api/market-rates', async (req, res) => {
                     SELECT json_agg(json_build_object('modId', "modId", 'value', value))
                     FROM item_mods im
                     WHERE im."itemId" = md.itemId
-                ) as mods
+                ) as mods,
+                (
+                    SELECT json_agg(json_build_object('modId', "modId", 'value', value, 'latentId', "latentId", 'latentParam', "latentParam"))
+                    FROM item_latents il
+                    WHERE il."itemId" = md.itemId AND il."latentId" = 59
+                ) as latents
             FROM mob_droplist md
             LEFT JOIN item_equipment ie ON md.itemId = ie."itemId"
             LEFT JOIN item_weapon iw ON md.itemId = iw."itemId"
