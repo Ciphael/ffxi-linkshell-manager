@@ -408,7 +408,7 @@ app.get('/api/market-rates', async (req, res) => {
             LEFT JOIN item_equipment ie ON md.itemId = ie."itemId"
             LEFT JOIN item_weapon iw ON md.itemId = iw."itemId"
             LEFT JOIN item_basic ib ON md.itemId = ib.itemid
-            LEFT JOIN item_usable iu ON md.itemId = iu.itemid AND iu.activation = 3
+            LEFT JOIN item_usable iu ON md.itemId = iu.itemid
             LEFT JOIN item_classifications ic ON md.itemId = ic.item_id
             LEFT JOIN mobs m ON md.dropId = m.dropid
             WHERE md.dropType IN (0, 1, 4) AND m.mob_name IS NOT NULL
