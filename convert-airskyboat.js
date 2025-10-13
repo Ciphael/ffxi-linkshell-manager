@@ -10,10 +10,10 @@ if (!fs.existsSync(OUTPUT_PATH)) {
     fs.mkdirSync(OUTPUT_PATH, { recursive: true });
 }
 
-// Item flag constants
+// Item flag constants (from AirSkyBoat src/map/items/item.h)
 const ITEM_FLAGS = {
-    RARE: 0x0004,      // 4
-    EXCLUSIVE: 0x0040  // 64
+    RARE: 0x8000,      // 32768 - bit 15
+    EXCLUSIVE: 0x4000  // 16384 - bit 14
 };
 
 /**
