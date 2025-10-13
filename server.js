@@ -439,6 +439,67 @@ app.get('/api/items/:itemName', async (req, res) => {
     }
 });
 
+// ============ GLOBAL ITEM CACHE ============
+
+// Get ALL items for global cache (used for tooltips everywhere)
+app.get('/api/all-items', async (req, res) => {
+    try {
+        const query = `
+            SELECT
+                ib.itemid as item_id,
+                COALESCE(ie.name, iw.name, ib.name) as item_name,
+                it.log_name as display_name,
+                it.log_name_plural,
+                it.description,
+                ic.classification,
+                ic.points_required,
+                ic.market_rate,
+                ic.estimated_value,
+                ic.converts_to_item_id,
+                ic.enhanced_1_id,
+                ic.enhanced_2_id,
+                ic.enhanced_3_id,
+                ib.is_rare,
+                ib.is_ex,
+                ie.level as equipment_level,
+                ie.ilevel as equipment_ilevel,
+                ie.jobs as equipment_jobs,
+                ie.slot as equipment_slot,
+                ie.race as equipment_race,
+                iw.skill as weapon_skill,
+                iw.delay as weapon_delay,
+                iw.dmg as weapon_dmg,
+                iw."dmgType" as weapon_dmg_type,
+                iu."maxCharges" as enchantment_charges,
+                iu."useDelay" as enchantment_use_delay,
+                iu."reuseDelay" as enchantment_reuse_delay,
+                (
+                    SELECT json_agg(json_build_object('modId', "modId", 'value', value))
+                    FROM item_mods im
+                    WHERE im."itemId" = ib.itemid
+                ) as mods,
+                (
+                    SELECT json_agg(json_build_object('modId', "modId", 'value', value, 'latentId', "latentId", 'latentParam', "latentParam"))
+                    FROM item_latents il
+                    WHERE il."itemId" = ib.itemid AND il."latentId" = 59
+                ) as latents
+            FROM item_basic ib
+            LEFT JOIN item_equipment ie ON ib.itemid = ie."itemId"
+            LEFT JOIN item_weapon iw ON ib.itemid = iw."itemId"
+            LEFT JOIN item_text it ON ib.itemid = it.itemid
+            LEFT JOIN item_usable iu ON ib.itemid = iu.itemid AND iu.activation = 3
+            LEFT JOIN item_classifications ic ON ib.itemid = ic.item_id
+            ORDER BY ib.itemid
+        `;
+
+        const result = await pool.query(query);
+        res.json(result.rows);
+    } catch (error) {
+        console.error('Error fetching all items:', error);
+        res.status(500).json({ error: 'Failed to fetch all items' });
+    }
+});
+
 // ============ MARKET RATES MANAGEMENT ============
 
 // Get all items from all bosses with their rates and boss info
