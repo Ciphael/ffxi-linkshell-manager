@@ -396,9 +396,9 @@ app.get('/api/market-rates', async (req, res) => {
                 iw.delay as weapon_delay,
                 iw.dmg as weapon_dmg,
                 iw."dmgType" as weapon_dmg_type,
-                iu."maxCharges" as enchantment_charges,
-                iu."useDelay" as enchantment_use_delay,
-                iu."reuseDelay" as enchantment_reuse_delay,
+                iu.maxcharges as enchantment_charges,
+                iu.usedelay as enchantment_use_delay,
+                iu.reusedelay as enchantment_reuse_delay,
                 (
                     SELECT json_agg(json_build_object('modId', "modId", 'value', value))
                     FROM item_mods im
