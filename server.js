@@ -378,6 +378,9 @@ app.get('/api/market-rates', async (req, res) => {
             SELECT DISTINCT ON (md.itemId, m.mob_name)
                 md.itemId as item_id,
                 COALESCE(ie.name, iw.name, ib.name, 'Unknown Item') as item_name,
+                it.log_name as display_name,
+                it.log_name_plural,
+                it.description,
                 ic.classification,
                 ic.points_required,
                 ic.market_rate,
@@ -413,6 +416,7 @@ app.get('/api/market-rates', async (req, res) => {
             LEFT JOIN item_equipment ie ON md.itemId = ie."itemId"
             LEFT JOIN item_weapon iw ON md.itemId = iw."itemId"
             LEFT JOIN item_basic ib ON md.itemId = ib.itemid
+            LEFT JOIN item_text it ON md.itemId = it.itemid
             LEFT JOIN item_usable iu ON md.itemId = iu.itemid AND iu.activation = 3
             LEFT JOIN item_classifications ic ON md.itemId = ic.item_id
             LEFT JOIN mobs m ON md.dropId = m.dropid
