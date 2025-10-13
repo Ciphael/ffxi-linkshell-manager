@@ -456,6 +456,7 @@ app.get('/api/market-rates', async (req, res) => {
                 ic.points_required,
                 ic.market_rate,
                 ic.estimated_value,
+                ic.converts_to_item_id,
                 ic.enhanced_1_id,
                 ic.enhanced_2_id,
                 ic.enhanced_3_id,
