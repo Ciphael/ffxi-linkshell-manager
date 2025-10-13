@@ -386,7 +386,21 @@ app.get('/api/market-rates', async (req, res) => {
                 ic.converts_to_item_name,
                 COALESCE(m.mob_name, 'Unknown Boss') as mob_name,
                 ib.is_rare,
-                ib.is_ex
+                ib.is_ex,
+                ie.level as equipment_level,
+                ie.ilevel as equipment_ilevel,
+                ie.jobs as equipment_jobs,
+                ie.slot as equipment_slot,
+                ie.race as equipment_race,
+                iw.skill as weapon_skill,
+                iw.delay as weapon_delay,
+                iw.dmg as weapon_dmg,
+                iw."dmgType" as weapon_dmg_type,
+                (
+                    SELECT json_agg(json_build_object('modId', "modId", 'value', value))
+                    FROM item_mods im
+                    WHERE im."itemId" = md.itemId
+                ) as mods
             FROM mob_droplist md
             LEFT JOIN item_equipment ie ON md.itemId = ie."itemId"
             LEFT JOIN item_weapon iw ON md.itemId = iw."itemId"
