@@ -472,11 +472,27 @@ app.get('/api/bosses/:bossId/planned-drops', async (req, res) => {
                 ic.convertible,
                 ic.converts_to_item_name,
                 ib.is_rare,
-                ib.is_ex
+                ib.is_ex,
+                ie.level as equipment_level,
+                ie.ilevel as equipment_ilevel,
+                ie.jobs as equipment_jobs,
+                ie.slot as equipment_slot,
+                ie.race as equipment_race,
+                iw.skill as weapon_skill,
+                iw.delay as weapon_delay,
+                iw.dmg as weapon_dmg,
+                iw."dmgType" as weapon_dmg_type,
+                (
+                    SELECT json_agg(json_build_object('modId', "modId", 'value', value))
+                    FROM item_mods im
+                    WHERE im."itemId" = ped.item_id
+                ) as mods
             FROM planned_event_drops ped
             LEFT JOIN users u ON ped.won_by = u.id
             LEFT JOIN item_classifications ic ON ped.item_id = ic.item_id
             LEFT JOIN item_basic ib ON ped.item_id = ib.itemid
+            LEFT JOIN item_equipment ie ON ped.item_id = ie."itemId"
+            LEFT JOIN item_weapon iw ON ped.item_id = iw."itemId"
             WHERE ped.event_boss_id = $1
             ORDER BY ped.drop_rate DESC, ped.item_name
         `;
@@ -565,7 +581,21 @@ app.get('/api/mob-droplist/:mobDropId/all-drops', async (req, res) => {
                 ic.convertible,
                 ic.converts_to_item_name,
                 ib.is_rare,
-                ib.is_ex
+                ib.is_ex,
+                ie.level as equipment_level,
+                ie.ilevel as equipment_ilevel,
+                ie.jobs as equipment_jobs,
+                ie.slot as equipment_slot,
+                ie.race as equipment_race,
+                iw.skill as weapon_skill,
+                iw.delay as weapon_delay,
+                iw.dmg as weapon_dmg,
+                iw."dmgType" as weapon_dmg_type,
+                (
+                    SELECT json_agg(json_build_object('modId', "modId", 'value', value))
+                    FROM item_mods im
+                    WHERE im."itemId" = md.itemId
+                ) as mods
             FROM mob_droplist md
             LEFT JOIN item_equipment ie ON md.itemId = ie."itemId"
             LEFT JOIN item_weapon iw ON md.itemId = iw."itemId"
