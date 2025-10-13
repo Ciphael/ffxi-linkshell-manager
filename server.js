@@ -383,6 +383,13 @@ app.get('/api/items/:itemName', async (req, res) => {
                 it.log_name as display_name,
                 it.log_name_plural,
                 it.description,
+                ic.classification,
+                ic.points_required,
+                ic.market_rate,
+                ic.estimated_value,
+                ic.enhanced_1_id,
+                ic.enhanced_2_id,
+                ic.enhanced_3_id,
                 ib.is_rare,
                 ib.is_ex,
                 ie.level as equipment_level,
@@ -412,6 +419,7 @@ app.get('/api/items/:itemName', async (req, res) => {
             LEFT JOIN item_weapon iw ON ib.itemid = iw."itemId"
             LEFT JOIN item_text it ON ib.itemid = it.itemid
             LEFT JOIN item_usable iu ON ib.itemid = iu.itemid AND iu.activation = 3
+            LEFT JOIN item_classifications ic ON ib.itemid = ic.item_id
             WHERE LOWER(ib.name) = $1
                OR LOWER(ie.name) = $1
                OR LOWER(iw.name) = $1
@@ -448,10 +456,9 @@ app.get('/api/market-rates', async (req, res) => {
                 ic.points_required,
                 ic.market_rate,
                 ic.estimated_value,
-                ic.convertible,
-                ic.converts_to_item_name,
-                ic.enhanced_item_id,
-                ic.enhanced_item_name,
+                ic.enhanced_1_id,
+                ic.enhanced_2_id,
+                ic.enhanced_3_id,
                 COALESCE(m.mob_name, 'Unknown Boss') as mob_name,
                 ib.is_rare,
                 ib.is_ex,
@@ -489,63 +496,8 @@ app.get('/api/market-rates', async (req, res) => {
             ORDER BY m.mob_name, md.itemId, COALESCE(ie.name, iw.name, ib.name)
         `;
 
-        // Query for converted-to items (base + enhanced)
-        const convertedItemsQuery = `
-            SELECT DISTINCT
-                ib.itemid as item_id,
-                COALESCE(ie.name, iw.name, ib.name, 'Unknown Item') as item_name,
-                it.log_name as display_name,
-                it.log_name_plural,
-                it.description,
-                NULL as classification,
-                NULL::integer as points_required,
-                NULL::integer as market_rate,
-                NULL::integer as estimated_value,
-                false as convertible,
-                NULL as converts_to_item_name,
-                NULL::integer as enhanced_item_id,
-                NULL as enhanced_item_name,
-                NULL as mob_name,
-                ib.is_rare,
-                ib.is_ex,
-                ie.level as equipment_level,
-                ie.ilevel as equipment_ilevel,
-                ie.jobs as equipment_jobs,
-                ie.slot as equipment_slot,
-                ie.race as equipment_race,
-                iw.skill as weapon_skill,
-                iw.delay as weapon_delay,
-                iw.dmg as weapon_dmg,
-                iw."dmgType" as weapon_dmg_type,
-                iu."maxCharges" as enchantment_charges,
-                iu."useDelay" as enchantment_use_delay,
-                iu."reuseDelay" as enchantment_reuse_delay,
-                (
-                    SELECT json_agg(json_build_object('modId', "modId", 'value', value))
-                    FROM item_mods im
-                    WHERE im."itemId" = ib.itemid
-                ) as mods,
-                (
-                    SELECT json_agg(json_build_object('modId', "modId", 'value', value, 'latentId', "latentId", 'latentParam', "latentParam"))
-                    FROM item_latents il
-                    WHERE il."itemId" = ib.itemid AND il."latentId" = 59
-                ) as latents
-            FROM item_classifications ic
-            JOIN item_basic ib ON ib.itemid = ic.converts_to_item_id OR ib.itemid = ic.enhanced_item_id
-            LEFT JOIN item_equipment ie ON ib.itemid = ie."itemId"
-            LEFT JOIN item_weapon iw ON ib.itemid = iw."itemId"
-            LEFT JOIN item_text it ON ib.itemid = it.itemid
-            LEFT JOIN item_usable iu ON ib.itemid = iu.itemid AND iu.activation = 3
-            WHERE ic.convertible = true
-        `;
-
-        const dropResult = await pool.query(dropQuery);
-        const convertedResult = await pool.query(convertedItemsQuery);
-
-        // Combine both results
-        const allItems = [...dropResult.rows, ...convertedResult.rows];
-
-        res.json(allItems);
+        const result = await pool.query(dropQuery);
+        res.json(result.rows);
     } catch (error) {
         console.error('Error fetching market rates:', error);
         res.status(500).json({ error: 'Failed to fetch market rates' });
@@ -652,10 +604,9 @@ app.get('/api/bosses/:bossId/planned-drops', async (req, res) => {
                 u.character_name as assigned_character_name,
                 ic.points_required,
                 ic.market_rate,
-                ic.convertible,
-                ic.converts_to_item_name,
-                ic.enhanced_item_id,
-                ic.enhanced_item_name,
+                ic.enhanced_1_id,
+                ic.enhanced_2_id,
+                ic.enhanced_3_id,
                 ib.is_rare,
                 ib.is_ex,
                 ie.level as equipment_level,
@@ -763,10 +714,9 @@ app.get('/api/mob-droplist/:mobDropId/all-drops', async (req, res) => {
                 ic.estimated_value,
                 ic.points_required,
                 ic.market_rate,
-                ic.convertible,
-                ic.converts_to_item_name,
-                ic.enhanced_item_id,
-                ic.enhanced_item_name,
+                ic.enhanced_1_id,
+                ic.enhanced_2_id,
+                ic.enhanced_3_id,
                 ib.is_rare,
                 ib.is_ex,
                 ie.level as equipment_level,
