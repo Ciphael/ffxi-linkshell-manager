@@ -311,20 +311,49 @@ This is a major undertaking to completely overhaul tooltip data by scraping the 
 - `compareStats()` - Side-by-side comparison with match/difference reporting
 - Identifies unknown mods that need mapping
 
-**Test Results from Sky Gear Set**:
-- **Byakko's Haidate**: 4/4 stats match (100%) ✅
-  - DEF: 42, DEX: 15, Lightning Resistance: 50, Haste: 500
-- **Genbu's Kabuto**: 3/4 match (1 hidden Water resistance not on wiki)
-- **Kirin's Osode**: 10/10 stats match (100%) ✅
-  - All attributes (DEF, MP, STR, DEX, VIT, AGI, INT, MND, CHR, Light Resistance)
-- **Seiryu's Kote**: 4/4 stats match (100%) ✅
-- **Suzaku's Sune-ate**: 404 Not Found on wiki
-- **Crimson Greaves**: 9/10 match (Dragon Affinity captured as hidden effect)
-- **Blood Greaves**: 9/10 match (Dragon Affinity captured as hidden effect)
-- **Walkure Mask**: 2/3 match (Attack bonus in DB not explicit in wiki)
-- **Tonbo-Giri**: 4/4 stats match (100%) ✅
-- **Scarecrow Scythe**: 3/3 stats match (100%) ✅
-- **Byakko's Axe**: 3/10 match (special effect mods need mapping)
+**Critical Fixes Applied (2025-01-14)**:
+1. ✅ **URL Formatting Fix**: Wiki uses Title_Case for ALL words in hyphenated items
+   - Example: `Suzaku%27s_Sune-Ate` (capital A in "Ate")
+   - Rule: ALWAYS capitalize each word in hyphenated compound names
+
+2. ✅ **Elemental Resistance Parsing**: Fixed Water/Fire resistance extraction
+   - Added link title attribute checking (`title="Water Resistance"`)
+   - Added Mod15 (Fire Resistance) to MOD_NAMES
+   - Fixed bold tag recursive processing to handle nested elements
+
+3. ✅ **Title Case Stat Parsing**: Fixed Attack/Accuracy extraction
+   - Added regex pattern specifically for Title Case single-word stats
+   - Pattern order matters: multi-word → Title Case → all caps
+
+4. ✅ **Line Extraction Logic (CRITICAL)**: Fixed to match wiki visual display exactly
+   - **Before**: Split stats into separate lines (DEF: 11, HP +15, Attack +6) → 7 lines
+   - **After**: Keep stats together on same line (DEF: 11 HP +15 Attack +6) → 5 lines
+   - **Rule**: Only split on explicit `<br>` tags, NOT on multiple stats in same div
+   - This ensures tooltip line count matches wiki's visual display exactly
+
+**Test Results from Sky Gear Set** (as of 2025-01-14):
+- **Byakko's Haidate**: 4 lines, 4/4 stats match (100%) ✅
+  - Line 2: "DEF: 42 DEX +15 Resistance to Lightning +50 Haste +5%"
+- **Genbu's Kabuto**: 4 lines, 4/4 stats match (100%) ✅
+  - Line 2: "DEF: 35 HP +50 VIT +15 Water +50"
+- **Kirin's Osode**: 6 lines, 10/10 stats match (100%) ✅
+  - Line 2-4: Multi-line stats (DEF, MP, STR, DEX, VIT, AGI, INT, MND, CHR, Light Resistance)
+- **Seiryu's Kote**: 5 lines, 4/4 stats match (100%) ✅
+  - Line 2-3: DEF, HP, AGI, Ranged Accuracy
+- **Suzaku's Sune-Ate**: 5 lines, 3/3 stats match (100%) ✅
+  - Fixed URL formatting: Suzaku%27s_Sune-Ate (capital A)
+  - Line 2-3: DEF, MND, Fire Resistance, Blaze Spikes effect
+- **Crimson Greaves**: 5 lines, 9/9 stats match (100%) ✅
+  - Dragon Affinity captured as hidden effect
+- **Blood Greaves**: 5 lines, 9/9 stats match (100%) ✅
+  - Dragon Affinity captured as hidden effect
+- **Walkure Mask**: 5 lines, 3/3 stats match (100%) ✅
+  - Line 2: "DEF: 11 HP +15 Attack +6" (fixed to keep stats together)
+- **Tonbo-Giri**: 4 lines, 4/4 stats match (100%) ✅
+  - Line 2-3: DMG, Delay, AGI, Enmity, Vermin crit bonus
+- **Scarecrow Scythe**: 4 lines, 3/3 stats match (100%) ✅
+  - Line 2-3: DMG, Delay, Double Attack, Bind vs birds
+- **Byakko's Axe**: 5 lines, 3/10 stats match (special effect mods need mapping)
 
 **Elemental Resistance Mods Mapped**:
 - ✅ Mod16: Ice Resistance
@@ -348,6 +377,10 @@ This is a major undertaking to completely overhaul tooltip data by scraping the 
 - Hidden effects like "Dragon Affinity" are captured separately from stats
 - Weapon latent effects (e.g., "Vs. vermin: Critical hit rate +3%") are on wiki but NOT in database
 - Special weapon effects ("Enhances Beast Killer", "Additional effect: Wind damage") use mod system
+- **CRITICAL**: Wiki visual lines don't always match HTML structure
+  - Multiple stats in ONE div = ONE visual line (e.g., "DEF: 11 HP +15 Attack +6")
+  - Only split on explicit `<br>` tags for accurate line count
+  - CSS/spacing creates visual appearance, not HTML structure
 
 **Next Steps**:
 - Research and map remaining unknown mods (230, 499, 500, 501, 950)
