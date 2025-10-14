@@ -473,6 +473,9 @@ app.get('/api/all-items', async (req, res) => {
                 iu."maxCharges" as enchantment_charges,
                 iu."useDelay" as enchantment_use_delay,
                 iu."reuseDelay" as enchantment_reuse_delay,
+                iwt.tooltip_lines as wiki_tooltip_lines,
+                iwt.hidden_effects as wiki_hidden_effects,
+                iwt.wiki_description,
                 (
                     SELECT json_agg(json_build_object('modId', "modId", 'value', value))
                     FROM item_mods im
@@ -489,6 +492,7 @@ app.get('/api/all-items', async (req, res) => {
             LEFT JOIN item_text it ON ib.itemid = it.itemid
             LEFT JOIN item_usable iu ON ib.itemid = iu.itemid AND iu.activation = 3
             LEFT JOIN item_classifications ic ON ib.itemid = ic.item_id
+            LEFT JOIN item_wiki_tooltips iwt ON ib.itemid = iwt.item_id
             ORDER BY ib.itemid
         `;
 
