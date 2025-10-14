@@ -431,8 +431,22 @@ This is a major undertaking to completely overhaul tooltip data by scraping the 
 **Formatting Rules Applied**:
 - ✅ No space after slot/weapon brackets: `[Head]All Races`
 - ✅ No spaces in stat increases: `HP+50`, `DEX+15`
+- ✅ No spaces after colons: `DEF:35`, `DMG:94`, `Delay:504`, `Lv.75`
 - ✅ No spaces in job lists: `WAR/MNK/BST/BRD/RNG`
 - ✅ Elemental resistances kept as text (frontend will map to images)
+
+**Verified Examples**:
+```
+genbus_kabuto:
+  Line 1: [Head]All Races
+  Line 2: DEF:35 HP+50 VIT+15 Water+50
+  Line 3: Lv.75 WAR/MNK/BST/BRD/RNG/SAM/
+
+byakkos_axe:
+  Line 1: (Great Axe)All Races
+  Line 2: DMG:94 Delay:504 Resistance to Wind+10 Attack+5
+  Line 3: Enhances "Beast Killer" effect
+```
 
 **Next Steps**:
 - Research and map remaining unknown mods (230, 499, 500, 501, 950)
