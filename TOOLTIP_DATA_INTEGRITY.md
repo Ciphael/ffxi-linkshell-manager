@@ -406,12 +406,36 @@ This is a major undertaking to completely overhaul tooltip data by scraping the 
   - Only split on explicit `<br>` tags for accurate line count
   - CSS/spacing creates visual appearance, not HTML structure
 
+**Phase 2: COMPLETE ✅** (2025-01-14)
+
+**Database Schema Created**:
+- ✅ Migration 031: Created `item_wiki_tooltips` table
+  * `item_id` INT PRIMARY KEY (references item_basic)
+  * `tooltip_lines` JSONB (array of formatted tooltip lines)
+  * `hidden_effects` JSONB (array of hidden effects)
+  * `wiki_description` TEXT (full wiki description)
+  * `wiki_url` VARCHAR(500) (source URL)
+  * `last_scraped` TIMESTAMP (tracking stale data)
+
+**Test Data Inserted**:
+- ✅ 4 items successfully populated with wiki-formatted tooltips
+  * Genbu's Kabuto (4 lines)
+  * Kirin's Osode (6 lines)
+  * Byakko's Haidate (4 lines)
+  * Byakko's Axe (5 lines)
+
+**Formatting Rules Applied**:
+- ✅ No space after slot/weapon brackets: `[Head]All Races`
+- ✅ No spaces in stat increases: `HP+50`, `DEX+15`
+- ✅ No spaces in job lists: `WAR/MNK/BST/BRD/RNG`
+- ✅ Elemental resistances kept as text (frontend will map to images)
+
 **Next Steps**:
 - Research and map remaining unknown mods (230, 499, 500, 501, 950)
-- Create item_wiki_tooltips table (Phase 2)
 - Clean up debug output from scraper
 - Expand test set to include accessories, consumables
 - Run full scrape when validation complete
+- Integrate with frontend to display wiki tooltips
 
 **Estimated Effort**:
 - Phase 1-2: 1-2 days
