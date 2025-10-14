@@ -289,6 +289,73 @@ This is a major undertaking to completely overhaul tooltip data by scraping the 
 - Manual data entry for critical items (relic, mythic, empyrean)
 - Community contribution system for missing data
 
+**PROGRESS UPDATE (2025-01-14)**:
+
+**Phase 1: COMPLETE ✅**
+- ✅ Created `scrape_wiki_statistics.js` with full HTML parsing capability
+- ✅ Successfully extracts tooltip lines, hidden effects, and descriptions
+- ✅ Tested with Sky Gear set (11 items: 8 armor + 3 weapons)
+- ✅ Handles both Rare/Ex and non-Rare/Ex items correctly
+- ✅ Parses armor (DEF-based) and weapons (DMG/Delay-based) formats
+
+**Wiki Scraper Features Implemented**:
+- `cleanDivText()` - Recursive HTML parsing with structure preservation
+- `extractHiddenEffects()` - Captures "Hidden Effect" sections from wiki
+- `scrapeWikiPage()` - Main scraping function with error handling
+- Elemental resistance parsing (Ice +20, Wind +20, etc.)
+- Proper spacing in resistance formatting
+
+**Comparison System Added**:
+- `parseWikiStats()` - Extracts stats from wiki tooltip lines using multiple regex patterns
+- `fetchDatabaseStats()` - Queries item_mods, item_equipment, item_weapon, item_latents
+- `compareStats()` - Side-by-side comparison with match/difference reporting
+- Identifies unknown mods that need mapping
+
+**Test Results from Sky Gear Set**:
+- **Byakko's Haidate**: 4/4 stats match (100%) ✅
+  - DEF: 42, DEX: 15, Lightning Resistance: 50, Haste: 500
+- **Genbu's Kabuto**: 3/4 match (1 hidden Water resistance not on wiki)
+- **Kirin's Osode**: 10/10 stats match (100%) ✅
+  - All attributes (DEF, MP, STR, DEX, VIT, AGI, INT, MND, CHR, Light Resistance)
+- **Seiryu's Kote**: 4/4 stats match (100%) ✅
+- **Suzaku's Sune-ate**: 404 Not Found on wiki
+- **Crimson Greaves**: 9/10 match (Dragon Affinity captured as hidden effect)
+- **Blood Greaves**: 9/10 match (Dragon Affinity captured as hidden effect)
+- **Walkure Mask**: 2/3 match (Attack bonus in DB not explicit in wiki)
+- **Tonbo-Giri**: 4/4 stats match (100%) ✅
+- **Scarecrow Scythe**: 3/3 stats match (100%) ✅
+- **Byakko's Axe**: 3/10 match (special effect mods need mapping)
+
+**Elemental Resistance Mods Mapped**:
+- ✅ Mod16: Ice Resistance
+- ✅ Mod17: Wind Resistance
+- ✅ Mod18: Earth Resistance
+- ✅ Mod19: Lightning Resistance
+- ✅ Mod20: Water Resistance
+- ✅ Mod21: Light Resistance
+- ✅ Mod22: Dark Resistance
+
+**Unknown Mods Requiring Research**:
+- Mod230: Unknown (on Byakko's Axe)
+- Mod431: Weapon Skill Accuracy (already mapped in frontend)
+- Mod499: Additional Effect Type
+- Mod500: Additional Effect Element/Creature (value 19 = Birds on Scarecrow Scythe)
+- Mod501: Additional Effect Damage/Value
+- Mod950: Unknown (on Byakko's Axe)
+
+**Key Findings**:
+- Wiki shows "Ice +20" but database stores as "Ice Resistance +20" (Mod16)
+- Hidden effects like "Dragon Affinity" are captured separately from stats
+- Weapon latent effects (e.g., "Vs. vermin: Critical hit rate +3%") are on wiki but NOT in database
+- Special weapon effects ("Enhances Beast Killer", "Additional effect: Wind damage") use mod system
+
+**Next Steps**:
+- Research and map remaining unknown mods (230, 499, 500, 501, 950)
+- Create item_wiki_tooltips table (Phase 2)
+- Clean up debug output from scraper
+- Expand test set to include accessories, consumables
+- Run full scrape when validation complete
+
 **Estimated Effort**:
 - Phase 1-2: 1-2 days
 - Phase 3: 2-3 days (depending on item count)
