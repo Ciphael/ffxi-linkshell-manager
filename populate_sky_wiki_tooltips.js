@@ -190,7 +190,8 @@ async function scrapeWikiPage(wikiName) {
                     const parts = divHtml.split(/<br\s*\/?>/i);
                     parts.forEach((part) => {
                         const $part = $('<div>').html(part);
-                        const partText = cleanDivText($, $part.get(0)).trim();
+                        // Only trim trailing spaces, preserve leading spaces for indentation
+                        const partText = cleanDivText($, $part.get(0)).replace(/\s+$/g, '');
                         if (partText) {
                             tooltipLines.push(partText);
                         }
