@@ -28,7 +28,13 @@ function cleanDivText($, elem) {
     $(elem).contents().each((i, node) => {
         if (node.type === 'text') {
             // Direct text node
-            text += $(node).text();
+            const nodeText = $(node).text();
+            text += nodeText;
+
+            // Add space after elemental resistance values (pattern: +nn or -nn)
+            if (nodeText.match(/^[+\-]\d+$/)) {
+                text += ' ';
+            }
         } else if (node.type === 'tag') {
             const tagName = node.name;
 
@@ -45,7 +51,14 @@ function cleanDivText($, elem) {
                 }
             } else if (tagName === 'a') {
                 // Extract link text (e.g., "HP" from link to /wiki/Hit_Points)
-                text += $(node).text();
+                // But also recursively process children in case there are images
+                const linkText = $(node).text();
+                if (linkText) {
+                    text += linkText;
+                } else {
+                    // No text, might contain images - recurse
+                    text += cleanDivText($, node);
+                }
             } else if (tagName === 'b' || tagName === 'strong') {
                 // Bold text - preserve content
                 text += $(node).text();
