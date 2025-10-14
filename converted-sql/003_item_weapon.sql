@@ -1,7 +1,7 @@
 -- Converted from AirSkyBoat MySQL to PostgreSQL
 -- Source: item_weapon.sql
 -- Filters: "none"
--- Date: 2025-10-13T02:42:50.309Z
+-- Date: 2025-10-13T16:00:24.037Z
 
 DROP TABLE IF EXISTS "item_weapon";
 CREATE TABLE "item_weapon" (

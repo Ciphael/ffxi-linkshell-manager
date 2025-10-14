@@ -1,0 +1,580 @@
+=== FFXI Wiki Statistics Scraper ===
+Testing with Sky Gear set...
+
+
+[1/11] byakkos_haidate
+──────────────────────────────────────────────────
+✓ Found item ID: 12818
+
+Fetching: https://ffxiclopedia.fandom.com/wiki/Byakko%27s_Haidate
+✓ Found Statistics section
+Debug: Looking for table-cell div...
+  [0] <DIV> style="display:table; min-width:359px; border:1px solid #..." children: 8 divs
+  [1] <DIV> style="margin-top: 1em..." children: 0 divs
+  [2] <DIV> style="margin-top: 1em..." children: 0 divs
+  Found 2 table-cell divs
+✓ Found stats table-cell structure
+  Found 4 child divs
+  Raw HTML (first 500 chars):
+<div><b>Byakko's haidate</b><span style="float:right; margin-left:1em; width:48px;"><span class="mw-default-size mw-valign-text-bottom" typeof="mw:File"><a href="https://static.wikia.nocookie.net/ffxi/images/c/cf/Icon-sendable.png/revision/latest?cb=20240610161509" class="mw-file-description image" title="Sendable"><img alt="Sendable" src="data:image/gif;base64,R0lGODlhAQABAIABAAAAAP///yH5BAEAAAEALAAAAAABAAEAQAICTAEAOw%3D%3D" decoding="async" loading="lazy" width="16" height="16" class="mw-file-...
+  [1] → Added: "[Legs] All Races"
+  [2] → Added: "DEF: 42 DEX +15 Resistance to Lightning +50 Haste +5%"
+    [3.0] → Added (br-split): "Lv. 75 WAR / MNK / BST / BRD / RNG / SAM /"
+    [3.1] → Added (br-split): "NIN"
+
+📊 EXTRACTED DATA:
+Tooltip Lines: 4
+  - [Legs] All Races
+  - DEF: 42 DEX +15 Resistance to Lightning +50 Haste +5%
+  - Lv. 75 WAR / MNK / BST / BRD / RNG / SAM /
+  - NIN
+
+📝 Description: View the entire Kirin's Osode Set.
+
+🔍 COMPARISON ANALYSIS:
+──────────────────────────────────────────────────
+
+✅ Matching Stats:
+   ✓ DEF: 42 (match)
+   ✓ Haste: 500 (match)
+   ✓ DEX: 15 (match)
+   ✓ Lightning Resistance: 50 (match)
+
+❗ UNKNOWN MODS (need to add to MOD_NAMES):
+   ❓ Lightning: 50 (in wiki, UNKNOWN MOD - needs mapping)
+
+📈 SUMMARY:
+   Matches: 4
+   Differences: 0
+   Unknown Mods: 1
+
+✓ Successfully parsed and compared wiki data
+
+[2/11] genbus_kabuto
+──────────────────────────────────────────────────
+✓ Found item ID: 12434
+
+Fetching: https://ffxiclopedia.fandom.com/wiki/Genbu%27s_Kabuto
+✓ Found Statistics section
+Debug: Looking for table-cell div...
+  [0] <DIV> style="display:table; min-width:359px; border:1px solid #..." children: 8 divs
+  [1] <DIV> style="margin-top: 1em..." children: 0 divs
+  [2] <P> style="no-style..." children: 0 divs
+  Found 2 table-cell divs
+✓ Found stats table-cell structure
+  Found 4 child divs
+  Raw HTML (first 500 chars):
+<div><b>Genbu's kabuto</b><span style="float:right; margin-left:1em; width:48px;"><span class="mw-default-size mw-valign-text-bottom" typeof="mw:File"><a href="https://static.wikia.nocookie.net/ffxi/images/9/9f/Rare.png/revision/latest?cb=20110520150127" class="mw-file-description image" title="Rare"><img alt="Rare" src="data:image/gif;base64,R0lGODlhAQABAIABAAAAAP///yH5BAEAAAEALAAAAAABAAEAQAICTAEAOw%3D%3D" decoding="async" loading="lazy" width="16" height="16" class="mw-file-element lazyload" d...
+  [1] → Added: "[Head] All Races"
+  [2] → Added: "DEF: 35 HP +50 VIT +15 Water +50"
+    [3.0] → Added (br-split): "Lv. 75 WAR / MNK / BST / BRD / RNG / SAM /"
+    [3.1] → Added (br-split): "NIN"
+
+📊 EXTRACTED DATA:
+Tooltip Lines: 4
+  - [Head] All Races
+  - DEF: 35 HP +50 VIT +15 Water +50
+  - Lv. 75 WAR / MNK / BST / BRD / RNG / SAM /
+  - NIN
+
+📝 Description: View the entire Kirin's Osode Set.
+
+🔍 COMPARISON ANALYSIS:
+──────────────────────────────────────────────────
+
+✅ Matching Stats:
+   ✓ DEF: 35 (match)
+   ✓ HP: 50 (match)
+   ✓ VIT: 15 (match)
+   ✓ Water Resistance: 50 (match)
+
+❗ UNKNOWN MODS (need to add to MOD_NAMES):
+   ❓ Water: 50 (in wiki, UNKNOWN MOD - needs mapping)
+
+📈 SUMMARY:
+   Matches: 4
+   Differences: 0
+   Unknown Mods: 1
+
+✓ Successfully parsed and compared wiki data
+
+[3/11] kirins_osode
+──────────────────────────────────────────────────
+✓ Found item ID: 12562
+
+Fetching: https://ffxiclopedia.fandom.com/wiki/Kirin%27s_Osode
+✓ Found Statistics section
+Debug: Looking for table-cell div...
+  [0] <DIV> style="display:table; min-width:359px; border:1px solid #..." children: 8 divs
+  [1] <DIV> style="margin-top: 1em..." children: 0 divs
+  [2] <DIV> style="margin-top: 1em..." children: 0 divs
+  Found 2 table-cell divs
+✓ Found stats table-cell structure
+  Found 4 child divs
+  Raw HTML (first 500 chars):
+<div><b>Kirin's osode</b><span style="float:right; margin-left:1em; width:48px;"><span class="mw-default-size mw-valign-text-bottom" typeof="mw:File"><a href="https://static.wikia.nocookie.net/ffxi/images/9/9f/Rare.png/revision/latest?cb=20110520150127" class="mw-file-description image" title="Rare"><img alt="Rare" src="data:image/gif;base64,R0lGODlhAQABAIABAAAAAP///yH5BAEAAAEALAAAAAABAAEAQAICTAEAOw%3D%3D" decoding="async" loading="lazy" width="16" height="16" class="mw-file-element lazyload" da...
+  [1] → Added: "[Body] All Races"
+    [2.0] → Added (br-split): "DEF: 52 MP +30 STR +10 DEX +10 VIT +10"
+    [2.1] → Added (br-split): "AGI +10 INT +10 MND +10 CHR +10"
+    [2.2] → Added (br-split): "Resistance to Light +50"
+    [3.0] → Added (br-split): "Lv. 75 WAR / MNK / BST / BRD / RNG / SAM /"
+    [3.1] → Added (br-split): "NIN"
+
+📊 EXTRACTED DATA:
+Tooltip Lines: 6
+  - [Body] All Races
+  - DEF: 52 MP +30 STR +10 DEX +10 VIT +10
+  - AGI +10 INT +10 MND +10 CHR +10
+  - Resistance to Light +50
+  - Lv. 75 WAR / MNK / BST / BRD / RNG / SAM /
+  - NIN
+
+📝 Description: View the entire Kirin's Osode Set.
+
+🔍 COMPARISON ANALYSIS:
+──────────────────────────────────────────────────
+
+✅ Matching Stats:
+   ✓ DEF: 52 (match)
+   ✓ MP: 30 (match)
+   ✓ STR: 10 (match)
+   ✓ DEX: 10 (match)
+   ✓ VIT: 10 (match)
+   ✓ AGI: 10 (match)
+   ✓ INT: 10 (match)
+   ✓ MND: 10 (match)
+   ✓ CHR: 10 (match)
+   ✓ Light Resistance: 50 (match)
+
+❗ UNKNOWN MODS (need to add to MOD_NAMES):
+   ❓ Light: 50 (in wiki, UNKNOWN MOD - needs mapping)
+
+📈 SUMMARY:
+   Matches: 10
+   Differences: 0
+   Unknown Mods: 1
+
+✓ Successfully parsed and compared wiki data
+
+[4/11] seiryus_kote
+──────────────────────────────────────────────────
+✓ Found item ID: 12690
+
+Fetching: https://ffxiclopedia.fandom.com/wiki/Seiryu%27s_Kote
+✓ Found Statistics section
+Debug: Looking for table-cell div...
+  [0] <DIV> style="display:table; min-width:359px; border:1px solid #..." children: 8 divs
+  [1] <DIV> style="margin-top: 1em..." children: 0 divs
+  [2] <DIV> style="margin-top: 1em..." children: 0 divs
+  Found 2 table-cell divs
+✓ Found stats table-cell structure
+  Found 4 child divs
+  Raw HTML (first 500 chars):
+<div><b>Seiryu's kote</b><span style="float:right; margin-left:1em; width:48px;"><span class="mw-default-size mw-valign-text-bottom" typeof="mw:File"><a href="https://static.wikia.nocookie.net/ffxi/images/c/cf/Icon-sendable.png/revision/latest?cb=20240610161509" class="mw-file-description image" title="Sendable"><img alt="Sendable" src="data:image/gif;base64,R0lGODlhAQABAIABAAAAAP///yH5BAEAAAEALAAAAAABAAEAQAICTAEAOw%3D%3D" decoding="async" loading="lazy" width="16" height="16" class="mw-file-ele...
+  [1] → Added: "[Hands] All Races"
+    [2.0] → Added (br-split): "DEF: 26 HP +50 AGI +15"
+    [2.1] → Added (br-split): "Ranged Accuracy +10"
+    [3.0] → Added (br-split): "Lv. 75 WAR / MNK / BST / BRD / RNG / SAM /"
+    [3.1] → Added (br-split): "NIN"
+
+📊 EXTRACTED DATA:
+Tooltip Lines: 5
+  - [Hands] All Races
+  - DEF: 26 HP +50 AGI +15
+  - Ranged Accuracy +10
+  - Lv. 75 WAR / MNK / BST / BRD / RNG / SAM /
+  - NIN
+
+📝 Description: View the entire Kirin's Osode Set.
+
+🔍 COMPARISON ANALYSIS:
+──────────────────────────────────────────────────
+
+✅ Matching Stats:
+   ✓ DEF: 26 (match)
+   ✓ HP: 50 (match)
+   ✓ AGI: 15 (match)
+   ✓ Ranged Accuracy: 10 (match)
+
+⚠️  Differences:
+   ➕ Accuracy: 10 (in wiki, NOT in DB - modId 25)
+
+📈 SUMMARY:
+   Matches: 4
+   Differences: 1
+   Unknown Mods: 0
+
+✓ Successfully parsed and compared wiki data
+
+[5/11] suzakus_sune-ate
+──────────────────────────────────────────────────
+✓ Found item ID: 12946
+
+Fetching: https://ffxiclopedia.fandom.com/wiki/Suzaku%27s_Sune-Ate
+✓ Found Statistics section
+Debug: Looking for table-cell div...
+  [0] <DIV> style="display:table; min-width:359px; border:1px solid #..." children: 8 divs
+  [1] <DIV> style="margin-top: 1em..." children: 0 divs
+  [2] <DIV> style="margin-top: 1em..." children: 0 divs
+  Found 2 table-cell divs
+✓ Found stats table-cell structure
+  Found 4 child divs
+  Raw HTML (first 500 chars):
+<div><b>Suzaku's sune-ate</b><span style="float:right; margin-left:1em; width:48px;"><span class="mw-default-size mw-valign-text-bottom" typeof="mw:File"><a href="https://static.wikia.nocookie.net/ffxi/images/c/cf/Icon-sendable.png/revision/latest?cb=20240610161509" class="mw-file-description image" title="Sendable"><img alt="Sendable" src="data:image/gif;base64,R0lGODlhAQABAIABAAAAAP///yH5BAEAAAEALAAAAAABAAEAQAICTAEAOw%3D%3D" decoding="async" loading="lazy" width="16" height="16" class="mw-file...
+  [1] → Added: "[Feet] All Races"
+    [2.0] → Added (br-split): "DEF: 30 MND +15 Resistance to Fire +50"
+    [2.1] → Added (br-split): "Physical damage: "Blaze Spikes" effect"
+    [3.0] → Added (br-split): "Lv. 75 WAR / MNK / BST / BRD / RNG / SAM /"
+    [3.1] → Added (br-split): "NIN"
+
+📊 EXTRACTED DATA:
+Tooltip Lines: 5
+  - [Feet] All Races
+  - DEF: 30 MND +15 Resistance to Fire +50
+  - Physical damage: "Blaze Spikes" effect
+  - Lv. 75 WAR / MNK / BST / BRD / RNG / SAM /
+  - NIN
+
+📝 Description: View the entire Kirin's Osode Set.
+
+🔍 COMPARISON ANALYSIS:
+──────────────────────────────────────────────────
+
+✅ Matching Stats:
+   ✓ DEF: 30 (match)
+   ✓ MND: 15 (match)
+   ✓ Fire Resistance: 50 (match)
+
+⚠️  Differences:
+   ➖ Mod499: 1 (in DB, NOT in wiki)
+   ➖ Mod500: 20 (in DB, NOT in wiki)
+   ➖ Mod501: 20 (in DB, NOT in wiki)
+
+❗ UNKNOWN MODS (need to add to MOD_NAMES):
+   ❓ Fire: 50 (in wiki, UNKNOWN MOD - needs mapping)
+
+📈 SUMMARY:
+   Matches: 3
+   Differences: 3
+   Unknown Mods: 1
+
+✓ Successfully parsed and compared wiki data
+
+[6/11] crimson_greaves
+──────────────────────────────────────────────────
+✓ Found item ID: 14160
+
+Fetching: https://ffxiclopedia.fandom.com/wiki/Crimson_Greaves
+✓ Found Statistics section
+Debug: Looking for table-cell div...
+  [0] <DIV> style="display:table; min-width:359px; border:1px solid #..." children: 8 divs
+  [1] <DIV> style="margin-top: 1em..." children: 0 divs
+  [2] <DIV> style="margin-top: 1em..." children: 0 divs
+  Found 2 table-cell divs
+✓ Found stats table-cell structure
+  Found 4 child divs
+  Raw HTML (first 500 chars):
+<div><b>Crimson greaves</b><span style="float:right; margin-left:1em; width:48px;"><span class="mw-default-size mw-valign-text-bottom" typeof="mw:File"><a href="https://static.wikia.nocookie.net/ffxi/images/9/9f/Rare.png/revision/latest?cb=20110520150127" class="mw-file-description image" title="Rare"><img alt="Rare" src="data:image/gif;base64,R0lGODlhAQABAIABAAAAAP///yH5BAEAAAEALAAAAAABAAEAQAICTAEAOw%3D%3D" decoding="async" loading="lazy" width="16" height="16" class="mw-file-element lazyload" ...
+  [1] → Added: "[Feet] All Races"
+    [2.0] → Added (br-split): "DEF: 24 HP +15 MP +15 DEX +3 AGI +3"
+    [2.1] → Added (br-split): "Resistance to Ice +20 Resistance to Wind +20 Resistance to Earth +20 Resistance to Light +20"
+    [3.0] → Added (br-split): "Lv. 73 RDM / PLD / DRK / RNG / DRG / BLU /"
+    [3.1] → Added (br-split): "COR / RUN"
+
+📊 EXTRACTED DATA:
+Tooltip Lines: 5
+  - [Feet] All Races
+  - DEF: 24 HP +15 MP +15 DEX +3 AGI +3
+  - Resistance to Ice +20 Resistance to Wind +20 Resistance to Earth +20 Resistance to Light +20
+  - Lv. 73 RDM / PLD / DRK / RNG / DRG / BLU /
+  - COR / RUN
+
+🔒 Wiki Hidden Effects: 1
+  - Dragon Affinity
+
+📝 Description: View the entire Crimson Scale Mail Set.
+
+🔍 COMPARISON ANALYSIS:
+──────────────────────────────────────────────────
+
+✅ Matching Stats:
+   ✓ DEF: 24 (match)
+   ✓ HP: 15 (match)
+   ✓ MP: 15 (match)
+   ✓ DEX: 3 (match)
+   ✓ AGI: 3 (match)
+   ✓ Ice Resistance: 20 (match)
+   ✓ Wind Resistance: 20 (match)
+   ✓ Earth Resistance: 20 (match)
+   ✓ Light Resistance: 20 (match)
+
+⚠️  Differences:
+   ➖ Dragon Affinity: 1 (in DB, NOT in wiki)
+
+❗ UNKNOWN MODS (need to add to MOD_NAMES):
+   ❓ Ice: 20 (in wiki, UNKNOWN MOD - needs mapping)
+   ❓ Wind: 20 (in wiki, UNKNOWN MOD - needs mapping)
+   ❓ Earth: 20 (in wiki, UNKNOWN MOD - needs mapping)
+   ❓ Light: 20 (in wiki, UNKNOWN MOD - needs mapping)
+
+📈 SUMMARY:
+   Matches: 9
+   Differences: 1
+   Unknown Mods: 4
+
+✓ Successfully parsed and compared wiki data
+
+[7/11] blood_greaves
+──────────────────────────────────────────────────
+✓ Found item ID: 14161
+
+Fetching: https://ffxiclopedia.fandom.com/wiki/Blood_Greaves
+✓ Found Statistics section
+Debug: Looking for table-cell div...
+  [0] <DIV> style="display:table; min-width:359px; border:1px solid #..." children: 8 divs
+  [1] <DIV> style="margin-top: 1em..." children: 0 divs
+  [2] <DIV> style="margin-top: 1em..." children: 0 divs
+  Found 2 table-cell divs
+✓ Found stats table-cell structure
+  Found 4 child divs
+  Raw HTML (first 500 chars):
+<div><b>Blood greaves</b><span style="float:right; margin-left:1em; width:48px;"><span class="mw-default-size mw-valign-text-bottom" typeof="mw:File"><a href="https://static.wikia.nocookie.net/ffxi/images/9/9f/Rare.png/revision/latest?cb=20110520150127" class="mw-file-description image" title="Rare"><img alt="Rare" src="data:image/gif;base64,R0lGODlhAQABAIABAAAAAP///yH5BAEAAAEALAAAAAABAAEAQAICTAEAOw%3D%3D" decoding="async" loading="lazy" width="16" height="16" class="mw-file-element lazyload" da...
+  [1] → Added: "[Feet] All Races"
+    [2.0] → Added (br-split): "DEF: 25 HP +17 MP +17 DEX +4 AGI +4 +4"
+    [2.1] → Added (br-split): "Resistance to Ice +21 Resistance to Wind +21 Resistance to Earth +21 Resistance to Light +21"
+    [3.0] → Added (br-split): "Lv. 73 RDM / PLD / DRK / RNG / DRG / BLU /"
+    [3.1] → Added (br-split): "COR / RUN"
+
+📊 EXTRACTED DATA:
+Tooltip Lines: 5
+  - [Feet] All Races
+  - DEF: 25 HP +17 MP +17 DEX +4 AGI +4 +4
+  - Resistance to Ice +21 Resistance to Wind +21 Resistance to Earth +21 Resistance to Light +21
+  - Lv. 73 RDM / PLD / DRK / RNG / DRG / BLU /
+  - COR / RUN
+
+🔒 Wiki Hidden Effects: 1
+  - Dragon Affinity
+
+📝 Description: View the entire Blood Scale Mail Set.
+
+🔍 COMPARISON ANALYSIS:
+──────────────────────────────────────────────────
+
+✅ Matching Stats:
+   ✓ DEF: 25 (match)
+   ✓ HP: 17 (match)
+   ✓ MP: 17 (match)
+   ✓ DEX: 4 (match)
+   ✓ AGI: 4 (match)
+   ✓ Ice Resistance: 21 (match)
+   ✓ Wind Resistance: 21 (match)
+   ✓ Earth Resistance: 21 (match)
+   ✓ Light Resistance: 21 (match)
+
+⚠️  Differences:
+   ➖ Dragon Affinity: 1 (in DB, NOT in wiki)
+
+❗ UNKNOWN MODS (need to add to MOD_NAMES):
+   ❓ Ice: 21 (in wiki, UNKNOWN MOD - needs mapping)
+   ❓ Wind: 21 (in wiki, UNKNOWN MOD - needs mapping)
+   ❓ Earth: 21 (in wiki, UNKNOWN MOD - needs mapping)
+   ❓ Light: 21 (in wiki, UNKNOWN MOD - needs mapping)
+
+📈 SUMMARY:
+   Matches: 9
+   Differences: 1
+   Unknown Mods: 4
+
+✓ Successfully parsed and compared wiki data
+
+[8/11] walkure_mask
+──────────────────────────────────────────────────
+✓ Found item ID: 15185
+
+Fetching: https://ffxiclopedia.fandom.com/wiki/Walkure_Mask
+✓ Found Statistics section
+Debug: Looking for table-cell div...
+  [0] <DIV> style="display:table; min-width:359px; border:1px solid #..." children: 8 divs
+  [1] <H2> style="no-style..." children: 0 divs
+  [2] <DIV> style="margin-bottom:0.5em..." children: 0 divs
+  Found 2 table-cell divs
+✓ Found stats table-cell structure
+  Found 4 child divs
+  Raw HTML (first 500 chars):
+<div><b>Walkure mask</b></div><div><b>[<a href="/wiki/Category:Head" title="Category:Head">Head</a>]</b> <b>All Races</b></div><div><b><a href="/wiki/Defense" title="Defense">DEF</a>:</b>&nbsp;11 <b><a href="/wiki/Hit_Points" title="Hit Points">HP</a></b>&nbsp;+15 <b><a href="/wiki/Attack" title="Attack">Attack</a></b>&nbsp;+6</div><div><b>Lv.</b> 43 <b><a href="/wiki/WAR" class="mw-redirect" title="WAR">WAR</a> / <a href="/wiki/RDM" class="mw-redirect" title="RDM">RDM</a> / <a href="/wiki/THF" ...
+  [1] → Added: "[Head] All Races"
+  [2] → Added: "DEF: 11 HP +15 Attack +6"
+    [3.0] → Added (br-split): "Lv. 43 WAR / RDM / THF / PLD / DRK / BST /"
+    [3.1] → Added (br-split): "BRD / RNG / SAM / NIN / DRG / BLU / COR / DNC /"
+    [3.2] → Added (br-split): "RUN"
+
+📊 EXTRACTED DATA:
+Tooltip Lines: 5
+  - [Head] All Races
+  - DEF: 11 HP +15 Attack +6
+  - Lv. 43 WAR / RDM / THF / PLD / DRK / BST /
+  - BRD / RNG / SAM / NIN / DRG / BLU / COR / DNC /
+  - RUN
+
+🔍 COMPARISON ANALYSIS:
+──────────────────────────────────────────────────
+
+✅ Matching Stats:
+   ✓ DEF: 11 (match)
+   ✓ Attack: 6 (match)
+   ✓ HP: 15 (match)
+
+📈 SUMMARY:
+   Matches: 3
+   Differences: 0
+   Unknown Mods: 0
+
+✓ Successfully parsed and compared wiki data
+
+[9/11] tonbo-giri
+──────────────────────────────────────────────────
+✓ Found item ID: 16838
+
+Fetching: https://ffxiclopedia.fandom.com/wiki/Tonbo-Giri
+✓ Found Statistics section
+Debug: Looking for table-cell div...
+  [0] <DIV> style="display:table; min-width:359px; border:1px solid #..." children: 8 divs
+  [1] <DIV> style="margin-top: 1em..." children: 0 divs
+  [2] <DIV> style="no-style..." children: 0 divs
+  Found 2 table-cell divs
+✓ Found stats table-cell structure
+  Found 4 child divs
+  Raw HTML (first 500 chars):
+<div><b>Tonbo-Giri</b><span style="float:right; margin-left:1em; width:48px;"><span class="mw-default-size mw-valign-text-bottom" typeof="mw:File"><a href="https://static.wikia.nocookie.net/ffxi/images/9/9f/Rare.png/revision/latest?cb=20110520150127" class="mw-file-description image" title="Rare"><img alt="Rare" src="data:image/gif;base64,R0lGODlhAQABAIABAAAAAP///yH5BAEAAAEALAAAAAABAAEAQAICTAEAOw%3D%3D" decoding="async" loading="lazy" width="16" height="16" class="mw-file-element lazyload" data-...
+  [1] → Added: "(Polearm) All Races"
+    [2.0] → Added (br-split): "DMG: 72 Delay: 396 AGI +3 Enmity +3"
+    [2.1] → Added (br-split): "Vs. vermin: Critical hit rate +3%"
+  [3] → Added: "Lv. 68 SAM / DRG"
+
+📊 EXTRACTED DATA:
+Tooltip Lines: 4
+  - (Polearm) All Races
+  - DMG: 72 Delay: 396 AGI +3 Enmity +3
+  - Vs. vermin: Critical hit rate +3%
+  - Lv. 68 SAM / DRG
+
+🔍 COMPARISON ANALYSIS:
+──────────────────────────────────────────────────
+
+✅ Matching Stats:
+   ✓ DMG: 72 (match)
+   ✓ Delay: 396 (match)
+   ✓ Enmity: 3 (match)
+   ✓ AGI: 3 (match)
+
+📈 SUMMARY:
+   Matches: 4
+   Differences: 0
+   Unknown Mods: 0
+
+✓ Successfully parsed and compared wiki data
+
+[10/11] scarecrow_scythe
+──────────────────────────────────────────────────
+✓ Found item ID: 18044
+
+Fetching: https://ffxiclopedia.fandom.com/wiki/Scarecrow_Scythe
+✓ Found Statistics section
+Debug: Looking for table-cell div...
+  [0] <DIV> style="display:table;..." children: 5 divs
+  [1] <DIV> style="margin-top: 1em..." children: 0 divs
+  [2] <DIV> style="no-style..." children: 0 divs
+  Found 1 table-cell divs
+✓ Found stats table-cell structure
+  Found 4 child divs
+  Raw HTML (first 500 chars):
+<div><b>Scarecrow scythe</b><span style="float:right; margin-left:1em; width:48px;"><span class="mw-default-size mw-valign-text-bottom" typeof="mw:File"><a href="https://static.wikia.nocookie.net/ffxi/images/9/9f/Rare.png/revision/latest?cb=20110520150127" class="mw-file-description image" title="Rare"><img alt="Rare" src="https://static.wikia.nocookie.net/ffxi/images/9/9f/Rare.png/revision/latest?cb=20110520150127" decoding="async" loading="lazy" width="16" height="16" class="mw-file-element" d...
+  [1] → Added: "(Scythe) All Races"
+    [2.0] → Added (br-split): "DMG: 86 Delay: 480 "Double Attack" +1%"
+    [2.1] → Added (br-split): "Additional effect vs. birds: "Bind""
+  [3] → Added: "Lv. 75 WAR / DRK / BST"
+
+📊 EXTRACTED DATA:
+Tooltip Lines: 4
+  - (Scythe) All Races
+  - DMG: 86 Delay: 480 "Double Attack" +1%
+  - Additional effect vs. birds: "Bind"
+  - Lv. 75 WAR / DRK / BST
+
+📝 Description: Additional effect vs. birds: "Bind"
+
+🔍 COMPARISON ANALYSIS:
+──────────────────────────────────────────────────
+
+✅ Matching Stats:
+   ✓ DMG: 86 (match)
+   ✓ Delay: 480 (match)
+   ✓ Double Attack: 1 (match)
+
+📈 SUMMARY:
+   Matches: 3
+   Differences: 0
+   Unknown Mods: 0
+
+✓ Successfully parsed and compared wiki data
+
+[11/11] byakkos_axe
+──────────────────────────────────────────────────
+✓ Found item ID: 18198
+
+Fetching: https://ffxiclopedia.fandom.com/wiki/Byakko%27s_Axe
+✓ Found Statistics section
+Debug: Looking for table-cell div...
+  [0] <DIV> style="display:table;..." children: 5 divs
+  [1] <DIV> style="margin-top: 1em..." children: 0 divs
+  [2] <DIV> style="no-style..." children: 0 divs
+  Found 1 table-cell divs
+✓ Found stats table-cell structure
+  Found 4 child divs
+  Raw HTML (first 500 chars):
+<div><b>Byakko's Axe</b><span style="float:right; margin-left:1em; width:48px;"><span class="mw-default-size mw-valign-text-bottom" typeof="mw:File"><a href="https://static.wikia.nocookie.net/ffxi/images/9/9f/Rare.png/revision/latest?cb=20110520150127" class="mw-file-description image" title="Rare"><img alt="Rare" src="https://static.wikia.nocookie.net/ffxi/images/9/9f/Rare.png/revision/latest?cb=20110520150127" decoding="async" loading="lazy" width="16" height="16" class="mw-file-element" data-...
+  [1] → Added: "(Great Axe) All Races"
+    [2.0] → Added (br-split): "DMG: 94 Delay: 504 Resistance to Wind +10 Attack +5"
+    [2.1] → Added (br-split): "Enhances "Beast Killer" effect"
+    [2.2] → Added (br-split): "Additional effect: Wind damage"
+  [3] → Added: "Lv. 74 WAR / DRK"
+
+📊 EXTRACTED DATA:
+Tooltip Lines: 5
+  - (Great Axe) All Races
+  - DMG: 94 Delay: 504 Resistance to Wind +10 Attack +5
+  - Enhances "Beast Killer" effect
+  - Additional effect: Wind damage
+  - Lv. 74 WAR / DRK
+
+🔍 COMPARISON ANALYSIS:
+──────────────────────────────────────────────────
+
+✅ Matching Stats:
+   ✓ DMG: 94 (match)
+   ✓ Delay: 504 (match)
+   ✓ Attack: 5 (match)
+   ✓ Wind Resistance: 10 (match)
+
+⚠️  Differences:
+   ➖ Mod230: 2 (in DB, NOT in wiki)
+   ➖ Mod431: 1 (in DB, NOT in wiki)
+   ➖ Mod499: 3 (in DB, NOT in wiki)
+   ➖ Mod500: 19 (in DB, NOT in wiki)
+   ➖ Mod501: 5 (in DB, NOT in wiki)
+   ➖ Mod950: 3 (in DB, NOT in wiki)
+
+❗ UNKNOWN MODS (need to add to MOD_NAMES):
+   ❓ Wind: 10 (in wiki, UNKNOWN MOD - needs mapping)
+
+📈 SUMMARY:
+   Matches: 4
+   Differences: 6
+   Unknown Mods: 1
+
+✓ Successfully parsed and compared wiki data
+
+
+=== TEST COMPLETE ===
+Processed 11 items from Sky Gear test set

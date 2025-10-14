@@ -164,10 +164,34 @@ If you see `Mod###` in a tooltip, that mod needs to be added to MOD_NAMES mappin
 6. **Multi-line effects** (each on own line)
 7. **Description** (from item_text.description)
 
-### Current Formatting Fixes Applied
+### Critical Formatting Rules (2025-01-14)
+
+**MUST BE FOLLOWED EXACTLY - These rules define how wiki data transforms into tooltips:**
+
+1. **Slot/Weapon Tag Alignment**: `[Head]`/`[Body]`/`(Great Axe)` are LEFT ALIGNED
+   - No spaces or pixel offsets from other stats
+
+2. **Race Placement**: Race goes IMMEDIATELY after closing bracket/parenthesis with NO SPACE
+   - ✅ Correct: `[Head]All Races` or `(Great Axe)All Races`
+   - ❌ Wrong: `[Head] All Races` or `(Great Axe) All Races`
+
+3. **Stat Format**: NO SPACES between stat name and value
+   - ✅ Correct: `HP+50`, `DEX+15`, `Haste+5%`
+   - ❌ Wrong: `HP +50`, `DEX +15`, `Haste +5%`
+   - **Note**: Removing spaces does NOT change which line the stat is on - wiki line is source of truth
+
+4. **Elemental Resistance**: "Resistance to [Element]" maps to an image/symbol, NOT text
+   - Example: "Resistance to Wind +10" → Wind resistance icon + "+10"
+   - Elements: Fire, Ice, Wind, Earth, Lightning, Water, Light, Dark
+
+5. **Job Requirements**: NO SPACES between jobs and forward slashes
+   - ✅ Correct: `WAR/MNK/BST/BRD/RNG`
+   - ❌ Wrong: `WAR / MNK / BST / BRD / RNG`
+
+### Previous Formatting Fixes Applied
 - ✅ Haste: Now shows `Haste+5%` not `Haste+-5%`
 - ✅ Movement Speed: Now shows `Movement Speed+12%` not `Mod169+12`
-- ✅ Race: Now shows `(Scythe) All Races` not just `(Scythe)`
+- ✅ Race: Now shows `(Scythe)All Races` not just `(Scythe)` (NO SPACE after parenthesis)
 - ✅ Double Attack: Now shows on same line as DMG/Delay
 - ✅ Full item names: Shows "Blood Finger Gauntlets" not "Blood Fng. Gnt."
 

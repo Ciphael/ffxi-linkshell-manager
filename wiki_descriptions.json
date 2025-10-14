@@ -1,0 +1,140 @@
+[
+  {
+    "itemid": 1856,
+    "name": "third_virtue",
+    "description": "A suspended memory of\na Lumorian.",
+    "source": "wiki"
+  },
+  {
+    "itemid": 1858,
+    "name": "moblumin_ingot",
+    "description": "An ingot of the Moblins' lightweight\n aluminum alloy.",
+    "source": "wiki"
+  },
+  {
+    "itemid": 1861,
+    "name": "moblin_sheepskin",
+    "description": "Beautiful curls of fluffy wool adorn\nthis tough skin.",
+    "source": "wiki"
+  },
+  {
+    "itemid": 1872,
+    "name": "ghrah_m_chip",
+    "description": "A smooth piece of tissue taken from\na Luminion known as a ghrah.\nA strange light is emitted from its\nsparkling center.",
+    "source": "wiki"
+  },
+  {
+    "itemid": 1875,
+    "name": "ancient_beastcoin",
+    "description": "A gold coin minted by the Quadav\nlong ago. Far more ornate than\nmodern currency, it consists of\nnearly pure gold, and a diamond\nfitted into its center.",
+    "source": "wiki"
+  },
+  {
+    "itemid": 1981,
+    "name": "skull_locust",
+    "description": "This variety of locust has been\ndevastating Sarutabaruta in recent\nyears. It is said that mages affixed\nthe eerie mark resembling a skull to\nits head as a prank.",
+    "source": "wiki"
+  },
+  {
+    "itemid": 1983,
+    "name": "mushroom_locust",
+    "description": "This variety of locust has adapted\nto the jungles of Elshimo. Its unusual\ndiet consists mainly of mushrooms.",
+    "source": "wiki"
+  },
+  {
+    "itemid": 1984,
+    "name": "snapping_mole",
+    "description": "A diminutive variety of mole\nthat inhabits the Gustaberg region,\nsnapping moles are very aggressive\nand are known to bite miners' ankles.",
+    "source": "wiki"
+  },
+  {
+    "itemid": 2121,
+    "name": "ovinnik_hide",
+    "description": "The remarkably glossy\n hide of an ovinnik.",
+    "source": "wiki"
+  },
+  {
+    "itemid": 2123,
+    "name": "catoblepas_hide",
+    "description": "The stiff hide of a catoblepas.",
+    "source": "wiki"
+  },
+  {
+    "itemid": 2146,
+    "name": "merrow_scale",
+    "description": "A pliable, beautiful scale from\na Merrow.",
+    "source": "wiki"
+  },
+  {
+    "itemid": 2149,
+    "name": "apkallu_feather",
+    "description": "A feather from the wing of an apkallu.",
+    "source": "wiki"
+  },
+  {
+    "itemid": 2150,
+    "name": "colibri_feather",
+    "description": "A feather from the tail of a colibri.",
+    "source": "wiki"
+  },
+  {
+    "itemid": 2153,
+    "name": "qiqirn_sandbag",
+    "description": "The Qiqirn carry these sandbags for\n a quick escape in times of emergency.\n Only a Qiqirn can carry one.",
+    "source": "wiki"
+  },
+  {
+    "itemid": 2155,
+    "name": "lesser_chigoe",
+    "description": "A diminutive variety of the Near\nEastern chigoe parasite.",
+    "source": "wiki"
+  },
+  {
+    "itemid": 2159,
+    "name": "qutrub_bandage",
+    "description": "One of the bandages that cover the\n qutrubs' entire bodies. It is soaked\n in embalming fluid and an assortment\n of other unappetizing liquids.",
+    "source": "wiki"
+  },
+  {
+    "itemid": 2160,
+    "name": "troll_pauldron",
+    "description": "A bronze shoulderpiece from the armor\n of a Troll cannoneer. It is too heavy\n for a person to equip.",
+    "source": "wiki"
+  },
+  {
+    "itemid": 2161,
+    "name": "troll_vambrace",
+    "description": "A bronze armpiece from the armor of\na Troll hoplite. It is too heavy for\na person to equip.",
+    "source": "wiki"
+  },
+  {
+    "itemid": 2162,
+    "name": "mamool_ja_helmet",
+    "description": "An iron helmet formerly worn by\n a Mamool Ja fighter. Due to its odd\n shape, only Mamool Ja can wear it.",
+    "source": "wiki"
+  },
+  {
+    "itemid": 2164,
+    "name": "pephredo_hive_chip",
+    "description": "Part of a hive formed by hardened\npephredo secretions.",
+    "source": "wiki"
+  },
+  {
+    "itemid": 2165,
+    "name": "qutrub_gorget",
+    "description": "This gorget once decorated the neck\nof a Qutrub. It is too heavy for a\nperson to equip.",
+    "source": "wiki"
+  },
+  {
+    "itemid": 2167,
+    "name": "lamian_armlet",
+    "description": "This armlet once decorated a Lamia's\n wrist. It would not fit on a person.",
+    "source": "wiki"
+  },
+  {
+    "itemid": 2168,
+    "name": "cerberus_claw",
+    "description": "A claw from one of Cerberus's paws.\nAll who gaze upon it are filled with\na sense of dread.",
+    "source": "wiki"
+  }
+]

@@ -1,7 +1,7 @@
 -- Converted from AirSkyBoat MySQL to PostgreSQL
 -- Source: item_equipment.sql
 -- Filters: {"level":"<76","ilevel":"=0"}
--- Date: 2025-10-13T02:42:50.269Z
+-- Date: 2025-10-13T16:00:23.996Z
 
 DROP TABLE IF EXISTS "item_equipment";
 CREATE TABLE "item_equipment" (
