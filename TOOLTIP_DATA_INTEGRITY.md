@@ -180,9 +180,13 @@ If you see `Mod###` in a tooltip, that mod needs to be added to MOD_NAMES mappin
    - ❌ Wrong: `HP +50`, `DEX +15`, `Haste +5%`
    - **Note**: Removing spaces does NOT change which line the stat is on - wiki line is source of truth
 
-4. **Colon Format**: NO SPACES after colons in stat labels
-   - ✅ Correct: `DEF:35`, `DMG:94`, `Delay:504`, `Lv.75`
-   - ❌ Wrong: `DEF: 35`, `DMG: 94`, `Delay: 504`, `Lv. 75`
+4. **Colon Format**: NO SPACES after colons ONLY before numbers (keep space before text)
+   - ✅ Correct: `DEF:35`, `DMG:94`, `Delay:504`, `Lv.75` (colon + number)
+   - ✅ Correct: `Additional effect: Wind damage`, `Vs. Beasts: Attack+10` (colon + text with space)
+   - ✅ Correct: `Latent effect: HP+50` (colon + text with space)
+   - ❌ Wrong: `DEF: 35`, `DMG: 94` (space before number)
+   - ❌ Wrong: `Additional effect:Wind damage` (no space before text)
+   - **Rule**: Remove space after `:` only when followed by a digit (`/:\s+(?=\d)/g`)
 
 5. **Elemental Resistance**: "Resistance to [Element]" maps to an image/symbol, NOT text
    - Example: "Resistance to Wind +10" → Wind resistance icon + "+10"
@@ -461,7 +465,7 @@ byakkos_axe:
   Line 1: (Great Axe)All Races
   Line 2: DMG:94 Delay:504 Resistance to Wind+10 Attack+5
   Line 3: Enhances "Beast Killer" effect
-  Line 4: Additional effect:Wind damage
+  Line 4: Additional effect: Wind damage
   Line 5: Lv.74 WAR/DRK
 ```
 
