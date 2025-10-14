@@ -8,6 +8,25 @@ const pool = new Pool({
     ssl: { rejectUnauthorized: false }
 });
 
+// MOD_NAMES mapping from frontend (for comparison)
+const MOD_NAMES = {
+    1: 'DEF', 2: 'HP', 3: 'HPP', 5: 'MP', 6: 'MPP',
+    8: 'STR', 9: 'DEX', 10: 'VIT', 11: 'AGI', 12: 'INT', 13: 'MND', 14: 'CHR',
+    16: 'Ice Resistance', 17: 'Wind Resistance', 18: 'Earth Resistance',
+    19: 'Lightning Resistance', 20: 'Water Resistance', 21: 'Light Resistance', 22: 'Dark Resistance',
+    23: 'Attack', 24: 'Ranged Attack', 25: 'Accuracy', 26: 'Ranged Accuracy',
+    27: 'Enmity', 29: 'Haste', 30: 'Evasion', 31: 'Magic Evasion',
+    73: 'Store TP', 165: 'Critical Hit Rate', 169: 'Movement Speed',
+    288: 'Double Attack', 302: 'Triple Attack', 384: 'Haste',
+    1178: 'Dragon Affinity'
+};
+
+// Reverse mapping: name -> modId
+const MOD_IDS = {};
+for (const [modId, name] of Object.entries(MOD_NAMES)) {
+    MOD_IDS[name.toLowerCase()] = parseInt(modId);
+}
+
 // Test set: Sky Gear (armor), weapons, accessories
 const SKY_GEAR_TEST_SET = [
     // Armor (Rare/Ex)
@@ -25,6 +44,212 @@ const SKY_GEAR_TEST_SET = [
     { db_name: 'scarecrow_scythe', wiki_name: 'Scarecrow_Scythe' },
     { db_name: 'byakkos_axe', wiki_name: 'Byakko%27s_Axe' }
 ];
+
+// Parse wiki tooltip lines to extract stat names and values
+function parseWikiStats(tooltipLines) {
+    const stats = {};
+
+    for (const line of tooltipLines) {
+        // Match patterns: "STAT: value" or "STAT +value" or "STAT value"
+        // Examples: "DEF: 42", "HP +15", "DEX +3", "DMG: 72"
+        const patterns = [
+            // Pattern 1: "STAT: value" (e.g., "DEF: 42", "DMG: 72")
+            /([A-Z][A-Za-z\s]*?)\s*:\s*(\d+)/g,
+            // Pattern 2: "STAT +value" or "STAT -value" (e.g., "HP +15", "DEX +3")
+            /\b([A-Z][A-Z]+)\s*([+\-]\d+)/g,
+            // Pattern 3: Multi-word stats (e.g., "Ranged Attack +10")
+            /([A-Z][a-z]+(?:\s+[A-Z][a-z]+)+)\s*([+\-]\d+)/g
+        ];
+
+        for (const pattern of patterns) {
+            const matches = [...line.matchAll(pattern)];
+            for (const match of matches) {
+                const statName = match[1].trim();
+                const value = parseInt(match[2]);
+
+                // Skip job abbreviations (WAR, MNK, etc.) but keep HP, MP, DEF, etc.
+                if (statName.length === 3 && statName === statName.toUpperCase()) {
+                    if (!['HP', 'MP', 'DEF', 'AGI', 'STR', 'DEX', 'VIT', 'INT', 'MND', 'CHR', 'DMG'].includes(statName)) {
+                        continue;
+                    }
+                }
+
+                // Skip "Lv" prefix
+                if (statName.startsWith('Lv')) {
+                    continue;
+                }
+
+                stats[statName] = value;
+            }
+        }
+
+        // Check for special effects like "Double Attack", "Triple Attack"
+        if (line.includes('"Double Attack"') || line.includes('Double Attack')) {
+            const match = line.match(/Double Attack["\s]+([+\-]?\d+)/i);
+            if (match) {
+                stats['Double Attack'] = parseInt(match[1]);
+            }
+        }
+
+        if (line.includes('"Triple Attack"') || line.includes('Triple Attack')) {
+            const match = line.match(/Triple Attack["\s]+([+\-]?\d+)/i);
+            if (match) {
+                stats['Triple Attack'] = parseInt(match[1]);
+            }
+        }
+
+        // Elemental resistances (e.g., "Ice +20", "Lightning +50")
+        const elementMatches = line.matchAll(/(Fire|Ice|Wind|Earth|Lightning|Water|Light|Dark)\s+([+\-]\d+)/g);
+        for (const match of elementMatches) {
+            stats[`${match[1]} Resistance`] = parseInt(match[2]);
+        }
+
+        // Haste percentage (e.g., "Haste +5%")
+        const hasteMatch = line.match(/Haste\s+([+\-]\d+)%/);
+        if (hasteMatch) {
+            stats['Haste'] = parseInt(hasteMatch[1]) * 100; // Database stores basis points
+        }
+
+        // Enmity (e.g., "Enmity +3")
+        const enmityMatch = line.match(/Enmity\s+([+\-]\d+)/);
+        if (enmityMatch) {
+            stats['Enmity'] = parseInt(enmityMatch[1]);
+        }
+    }
+
+    return stats;
+}
+
+// Fetch database stats for an item
+async function fetchDatabaseStats(itemId) {
+    const stats = {};
+
+    // Get basic equipment stats (DEF, level, etc.)
+    const equipQuery = await pool.query(
+        'SELECT * FROM item_equipment WHERE "itemId" = $1',
+        [itemId]
+    );
+
+    if (equipQuery.rows.length > 0) {
+        const equip = equipQuery.rows[0];
+        if (equip.def) stats['DEF'] = equip.def;
+    }
+
+    // Get weapon stats (DMG, Delay)
+    const weaponQuery = await pool.query(
+        'SELECT * FROM item_weapon WHERE "itemId" = $1',
+        [itemId]
+    );
+
+    if (weaponQuery.rows.length > 0) {
+        const weapon = weaponQuery.rows[0];
+        if (weapon.dmg) stats['DMG'] = weapon.dmg;
+        if (weapon.delay) stats['Delay'] = weapon.delay;
+    }
+
+    // Get item mods (HP, MP, STR, DEX, etc.)
+    const modsQuery = await pool.query(
+        'SELECT "modId", value FROM item_mods WHERE "itemId" = $1',
+        [itemId]
+    );
+
+    for (const row of modsQuery.rows) {
+        const modId = row.modId;
+        const value = row.value;
+        const modName = MOD_NAMES[modId];
+
+        if (modName) {
+            stats[modName] = value;
+        } else {
+            stats[`Mod${modId}`] = value;
+        }
+    }
+
+    // Get latent effects
+    const latentsQuery = await pool.query(
+        'SELECT "modId", value, "latentId", "latentParam" FROM item_latents WHERE "itemId" = $1',
+        [itemId]
+    );
+
+    const latents = latentsQuery.rows.map(row => ({
+        modId: row.modId,
+        value: row.value,
+        latentId: row.latentId,
+        latentParam: row.latentParam,
+        modName: MOD_NAMES[row.modId] || `Mod${row.modId}`
+    }));
+
+    return { stats, latents };
+}
+
+// Compare wiki stats vs database stats
+function compareStats(wikiStats, dbData, itemName) {
+    console.log('\n🔍 COMPARISON ANALYSIS:');
+    console.log('─'.repeat(50));
+
+    const dbStats = dbData.stats;
+    const allStatNames = new Set([...Object.keys(wikiStats), ...Object.keys(dbStats)]);
+
+    const differences = [];
+    const unknownMods = [];
+    const matches = [];
+
+    for (const statName of allStatNames) {
+        const wikiValue = wikiStats[statName];
+        const dbValue = dbStats[statName];
+
+        if (wikiValue !== undefined && dbValue !== undefined) {
+            // Use numeric comparison to avoid type coercion issues
+            if (Number(wikiValue) === Number(dbValue)) {
+                matches.push(`✓ ${statName}: ${wikiValue} (match)`);
+            } else {
+                differences.push(`⚠️  ${statName}: Wiki=${wikiValue}, DB=${dbValue} (MISMATCH)`);
+            }
+        } else if (wikiValue !== undefined && dbValue === undefined) {
+            // Stat in wiki but not in database
+            const modId = MOD_IDS[statName.toLowerCase()];
+            if (modId) {
+                differences.push(`➕ ${statName}: ${wikiValue} (in wiki, NOT in DB - modId ${modId})`);
+            } else {
+                unknownMods.push(`❓ ${statName}: ${wikiValue} (in wiki, UNKNOWN MOD - needs mapping)`);
+            }
+        } else if (wikiValue === undefined && dbValue !== undefined) {
+            // Stat in database but not in wiki
+            differences.push(`➖ ${statName}: ${dbValue} (in DB, NOT in wiki)`);
+        }
+    }
+
+    // Report results
+    if (matches.length > 0) {
+        console.log('\n✅ Matching Stats:');
+        matches.forEach(m => console.log(`   ${m}`));
+    }
+
+    if (differences.length > 0) {
+        console.log('\n⚠️  Differences:');
+        differences.forEach(d => console.log(`   ${d}`));
+    }
+
+    if (unknownMods.length > 0) {
+        console.log('\n❗ UNKNOWN MODS (need to add to MOD_NAMES):');
+        unknownMods.forEach(u => console.log(`   ${u}`));
+    }
+
+    // Report latent effects
+    if (dbData.latents.length > 0) {
+        console.log('\n🔒 Database Latent Effects:');
+        dbData.latents.forEach(lat => {
+            console.log(`   - ${lat.modName} ${lat.value > 0 ? '+' : ''}${lat.value} (latentId: ${lat.latentId}, param: ${lat.latentParam})`);
+        });
+    }
+
+    return {
+        matches: matches.length,
+        differences: differences.length,
+        unknownMods: unknownMods.length,
+        unknownModDetails: unknownMods
+    };
+}
 
 // Clean text content from a div (preserve structure, remove HTML)
 function cleanDivText($, elem) {
@@ -299,7 +524,7 @@ async function scrapeWikiPage(wikiName) {
                 wikiData.tooltipLines.forEach(line => console.log(`  - ${line}`));
 
                 if (wikiData.hiddenEffects.length > 0) {
-                    console.log('\n🔒 Hidden Effects:', wikiData.hiddenEffects.length);
+                    console.log('\n🔒 Wiki Hidden Effects:', wikiData.hiddenEffects.length);
                     wikiData.hiddenEffects.forEach(effect => console.log(`  - ${effect}`));
                 }
 
@@ -307,8 +532,22 @@ async function scrapeWikiPage(wikiName) {
                     console.log('\n📝 Description:', wikiData.description);
                 }
 
+                // Parse wiki stats
+                const wikiStats = parseWikiStats(wikiData.tooltipLines);
+
+                // Fetch database stats
+                const dbData = await fetchDatabaseStats(itemId);
+
+                // Compare and report
+                const comparison = compareStats(wikiStats, dbData, item.db_name);
+
+                console.log('\n📈 SUMMARY:');
+                console.log(`   Matches: ${comparison.matches}`);
+                console.log(`   Differences: ${comparison.differences}`);
+                console.log(`   Unknown Mods: ${comparison.unknownMods}`);
+
                 // Store in database (for now, just log - we'll implement storage later)
-                console.log('\n✓ Successfully parsed wiki data');
+                console.log('\n✓ Successfully parsed and compared wiki data');
             }
 
             // Rate limit: wait 500ms between requests
