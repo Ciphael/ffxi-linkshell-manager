@@ -8,8 +8,9 @@ const pool = new Pool({
     ssl: { rejectUnauthorized: false }
 });
 
-// Sky Gear test set (Gods armor) + Walkure Mask (non-Rare/Ex test)
+// Test set: Sky Gear (armor), weapons, accessories
 const SKY_GEAR_TEST_SET = [
+    // Armor (Rare/Ex)
     { db_name: 'byakkos_haidate', wiki_name: 'Byakko%27s_Haidate' },
     { db_name: 'genbus_kabuto', wiki_name: 'Genbu%27s_Kabuto' },
     { db_name: 'kirins_osode', wiki_name: 'Kirin%27s_Osode' },
@@ -17,7 +18,12 @@ const SKY_GEAR_TEST_SET = [
     { db_name: 'suzakus_sune-ate', wiki_name: 'Suzaku%27s_Sune-ate' },
     { db_name: 'crimson_greaves', wiki_name: 'Crimson_Greaves' },
     { db_name: 'blood_greaves', wiki_name: 'Blood_Greaves' },
-    { db_name: 'walkure_mask', wiki_name: 'Walkure_Mask' }
+    // Armor (non-Rare/Ex)
+    { db_name: 'walkure_mask', wiki_name: 'Walkure_Mask' },
+    // Weapons
+    { db_name: 'tonbo-giri', wiki_name: 'Tonbo-Giri' },
+    { db_name: 'scarecrow_scythe', wiki_name: 'Scarecrow_Scythe' },
+    { db_name: 'byakkos_axe', wiki_name: 'Byakko%27s_Axe' }
 ];
 
 // Clean text content from a div (preserve structure, remove HTML)
