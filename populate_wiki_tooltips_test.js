@@ -227,9 +227,10 @@ function applyFormattingRules(tooltipLines) {
         // HP +50 → HP+50, DEX +15 → DEX+15
         formatted = formatted.replace(/([A-Z][A-Za-z\s]*?)\s+([+\-]\d+%?)/g, '$1$2');
 
-        // Rule 4: Remove spaces after colons
-        // DEF: 35 → DEF:35, DMG: 94 → DMG:94, Delay: 504 → Delay:504, Lv. 75 → Lv.75
-        formatted = formatted.replace(/:\s+/g, ':');
+        // Rule 4: Remove spaces after colons ONLY before numbers
+        // DEF: 35 → DEF:35, DMG: 94 → DMG:94, Delay: 504 → Delay:504
+        // But KEEP space for text: "Additional effect: Wind" stays "Additional effect: Wind"
+        formatted = formatted.replace(/:\s+(?=\d)/g, ':');
         formatted = formatted.replace(/\.\s+(\d+)/g, '.$1');
 
         // Rule 6: Remove spaces around job slashes
