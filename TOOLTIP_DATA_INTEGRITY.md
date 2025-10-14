@@ -180,11 +180,15 @@ If you see `Mod###` in a tooltip, that mod needs to be added to MOD_NAMES mappin
    - ❌ Wrong: `HP +50`, `DEX +15`, `Haste +5%`
    - **Note**: Removing spaces does NOT change which line the stat is on - wiki line is source of truth
 
-4. **Elemental Resistance**: "Resistance to [Element]" maps to an image/symbol, NOT text
+4. **Colon Format**: NO SPACES after colons in stat labels
+   - ✅ Correct: `DEF:35`, `DMG:94`, `Delay:504`, `Lv.75`
+   - ❌ Wrong: `DEF: 35`, `DMG: 94`, `Delay: 504`, `Lv. 75`
+
+5. **Elemental Resistance**: "Resistance to [Element]" maps to an image/symbol, NOT text
    - Example: "Resistance to Wind +10" → Wind resistance icon + "+10"
    - Elements: Fire, Ice, Wind, Earth, Lightning, Water, Light, Dark
 
-5. **Job Requirements**: NO SPACES between jobs and forward slashes
+6. **Job Requirements**: NO SPACES between jobs and forward slashes
    - ✅ Correct: `WAR/MNK/BST/BRD/RNG`
    - ❌ Wrong: `WAR / MNK / BST / BRD / RNG`
 

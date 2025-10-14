@@ -227,7 +227,12 @@ function applyFormattingRules(tooltipLines) {
         // HP +50 → HP+50, DEX +15 → DEX+15
         formatted = formatted.replace(/([A-Z][A-Za-z\s]*?)\s+([+\-]\d+%?)/g, '$1$2');
 
-        // Rule 5: Remove spaces around job slashes
+        // Rule 4: Remove spaces after colons
+        // DEF: 35 → DEF:35, DMG: 94 → DMG:94, Delay: 504 → Delay:504, Lv. 75 → Lv.75
+        formatted = formatted.replace(/:\s+/g, ':');
+        formatted = formatted.replace(/\.\s+(\d+)/g, '.$1');
+
+        // Rule 6: Remove spaces around job slashes
         // WAR / MNK / BST → WAR/MNK/BST
         formatted = formatted.replace(/\s*\/\s*/g, '/');
 
