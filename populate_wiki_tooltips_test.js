@@ -138,7 +138,6 @@ async function scrapeWikiPage(wikiName) {
         const tooltipLines = [];
         let hiddenEffects = [];
         let description = '';
-        let imageUrl = null;
 
         const tableContainer = statisticsHeading.nextAll('div').filter((i, elem) => {
             const style = $(elem).attr('style') || '';
@@ -146,48 +145,6 @@ async function scrapeWikiPage(wikiName) {
         }).first();
 
         const tableCells = tableContainer.find('div[style*="display:table-cell"]');
-
-        // Extract image from first table cell (icon cell)
-        // Look for actual item icon (not Rare/Ex indicator or placeholders)
-        if (tableCells.length > 0) {
-            const iconCell = tableCells.eq(0);
-            const imgTags = iconCell.find('img');
-
-            // Try to find the item icon (usually has .png in filename with real URL)
-            for (let i = 0; i < imgTags.length; i++) {
-                const src = $(imgTags[i]).attr('src');
-                const dataSrc = $(imgTags[i]).attr('data-src'); // Check for lazy-loaded images
-
-                // Use data-src if available (lazy loading)
-                const actualSrc = dataSrc || src;
-
-                // Skip Rare/Ex images, placeholders, and data URIs
-                if (actualSrc &&
-                    !actualSrc.startsWith('data:') &&
-                    !actualSrc.includes('Rare.png') &&
-                    !actualSrc.includes('Exclusive.png') &&
-                    actualSrc.includes('.png')) {
-                    imageUrl = actualSrc;
-                    console.log(`  ✓ Found image: ${imageUrl}`);
-                    break;
-                }
-            }
-
-            // Fallback: look for any PNG that's not a data URI
-            if (!imageUrl) {
-                for (let i = 0; i < imgTags.length; i++) {
-                    const src = $(imgTags[i]).attr('src');
-                    const dataSrc = $(imgTags[i]).attr('data-src');
-                    const actualSrc = dataSrc || src;
-                    if (actualSrc && actualSrc.includes('.png') && !actualSrc.startsWith('data:')) {
-                        imageUrl = actualSrc;
-                        console.log(`  ⚠️  Using fallback PNG: ${imageUrl}`);
-                        break;
-                    }
-                }
-            }
-        }
-
         let statsTableCell = tableCells.length > 1 ? tableCells.eq(1) : tableCells.first();
 
         if (statsTableCell.length > 0) {
@@ -242,8 +199,7 @@ async function scrapeWikiPage(wikiName) {
             url,
             tooltipLines,
             hiddenEffects,
-            description: description.trim(),
-            imageUrl
+            description: description.trim()
         };
 
     } catch (error) {
@@ -289,23 +245,21 @@ async function insertWikiTooltip(itemId, wikiData) {
     const formattedLines = applyFormattingRules(wikiData.tooltipLines);
 
     await pool.query(`
-        INSERT INTO item_wiki_tooltips (item_id, tooltip_lines, hidden_effects, wiki_description, wiki_url, image_url)
-        VALUES ($1, $2, $3, $4, $5, $6)
+        INSERT INTO item_wiki_tooltips (item_id, tooltip_lines, hidden_effects, wiki_description, wiki_url)
+        VALUES ($1, $2, $3, $4, $5)
         ON CONFLICT (item_id)
         DO UPDATE SET
             tooltip_lines = $2,
             hidden_effects = $3,
             wiki_description = $4,
             wiki_url = $5,
-            image_url = $6,
             last_scraped = CURRENT_TIMESTAMP
     `, [
         itemId,
         JSON.stringify(formattedLines),
         JSON.stringify(wikiData.hiddenEffects),
         wikiData.description,
-        wikiData.url,
-        wikiData.imageUrl
+        wikiData.url
     ]);
 }
 
