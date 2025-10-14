@@ -18,15 +18,31 @@ function dbNameToWikiName(dbName) {
         .replace(/^seiryus_/, 'seiryu\'s_')
         .replace(/^suzakus_/, 'suzaku\'s_');
 
-    // Capitalize each word
+    // Special case: lock_of_sirens_hair → Siren's_Hair (not Sirens_Hair)
+    if (dbName === 'lock_of_sirens_hair') {
+        return 'Siren%27s_Hair';
+    }
+
+    // Capitalize words (sentence case: keep small words lowercase)
+    const smallWords = ['of', 'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for'];
     wikiName = wikiName
         .split('_')
-        .map(word => {
+        .map((word, index) => {
             // Keep roman numerals uppercase
-            if (word.match(/^(i|ii|iii|iv|v|vi)$/)) {
+            if (word.match(/^(i|ii|iii|iv|v|vi)$/i)) {
                 return word.toUpperCase();
             }
-            return word.charAt(0).toUpperCase() + word.slice(1);
+            // Always capitalize first word, otherwise check if it's a small word
+            if (index === 0 || !smallWords.includes(word.toLowerCase())) {
+                // Handle hyphenated words - capitalize each part
+                if (word.includes('-')) {
+                    return word.split('-').map(part =>
+                        part.charAt(0).toUpperCase() + part.slice(1).toLowerCase()
+                    ).join('-');
+                }
+                return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+            }
+            return word.toLowerCase();
         })
         .join('_');
 
@@ -139,17 +155,57 @@ function extractHiddenEffects($, statsTable) {
     return hiddenEffects;
 }
 
+// Try multiple URL variations if initial attempt fails
+async function tryFetchWikiPage(wikiName) {
+    const variations = [wikiName];
+
+    // Add variations without common prefixes
+    const prefixes = ['Piece_of_', 'Spool_of_', 'Vial_of_', 'Square_of_', 'Slice_of_', 'Lock_of_', 'Scroll_of_'];
+    for (const prefix of prefixes) {
+        if (wikiName.startsWith(prefix)) {
+            variations.push(wikiName.substring(prefix.length));
+
+            // For "vial_of_black_beetle_blood" → try "Beetle_Blood" (skip color adjectives)
+            const withoutPrefix = wikiName.substring(prefix.length);
+            const colorAdjectives = ['Black_', 'White_', 'Red_', 'Blue_', 'Green_'];
+            for (const color of colorAdjectives) {
+                if (withoutPrefix.startsWith(color)) {
+                    variations.push(withoutPrefix.substring(color.length));
+                }
+            }
+        }
+    }
+
+    // Try each variation
+    for (const variant of variations) {
+        const url = `https://ffxiclopedia.fandom.com/wiki/${variant}`;
+        try {
+            const response = await axios.get(url, {
+                headers: {
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+                }
+            });
+            return { response, url };
+        } catch (error) {
+            if (error.response && error.response.status === 404) {
+                continue; // Try next variation
+            }
+            throw error; // Other errors should be thrown
+        }
+    }
+
+    return null; // All variations failed
+}
+
 // Scrape wiki page and extract tooltip data
 async function scrapeWikiPage(wikiName) {
-    const url = `https://ffxiclopedia.fandom.com/wiki/${wikiName}`;
-
     try {
-        const response = await axios.get(url, {
-            headers: {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-            }
-        });
+        const result = await tryFetchWikiPage(wikiName);
+        if (!result) {
+            return null; // 404 on all variations
+        }
 
+        const { response, url } = result;
         const $ = cheerio.load(response.data);
         const statisticsHeading = $('#Statistics').parent();
 
@@ -226,9 +282,8 @@ async function scrapeWikiPage(wikiName) {
         };
 
     } catch (error) {
-        if (error.response && error.response.status === 404) {
-            return null;
-        }
+        // Non-404 errors should be logged
+        console.error('Error scraping wiki page:', error.message);
         throw error;
     }
 }
@@ -316,15 +371,16 @@ async function insertWikiTooltip(itemId, wikiData) {
             try {
                 const wikiData = await scrapeWikiPage(wikiName);
 
-                if (wikiData && wikiData.tooltipLines.length > 0) {
-                    console.log(`  ✓ Scraped ${wikiData.tooltipLines.length} tooltip lines`);
+                // Accept items with tooltip lines, descriptions, or hidden effects
+                if (wikiData && (wikiData.tooltipLines.length > 0 || wikiData.description || wikiData.hiddenEffects.length > 0)) {
+                    console.log(`  ✓ Scraped ${wikiData.tooltipLines.length} tooltip lines, description: ${wikiData.description ? 'Yes' : 'No'}`);
 
                     // Insert into database
                     await insertWikiTooltip(item.itemid, wikiData);
                     console.log('  ✅ Inserted into database\n');
                     successCount++;
                 } else {
-                    console.log('  ⚠️  No tooltip data found (may be currency/material)\n');
+                    console.log('  ⚠️  No tooltip data or description found\n');
                     skippedCount++;
                 }
             } catch (error) {
