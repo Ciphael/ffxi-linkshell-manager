@@ -460,17 +460,31 @@ async function scrapeWikiPage(wikiName) {
                 }
             }
 
-            // Extract each child div as a separate tooltip line
+            // Extract tooltip lines matching wiki's visual display exactly
+            // CRITICAL: Only split on explicit <br> tags, NOT on multiple stats in same line
             statsTableCell.children('div').each((i, childDiv) => {
-                const lineText = cleanDivText($, childDiv).trim();
-                console.log(`  [${i}] Raw text (${lineText.length} chars): "${lineText.substring(0, 80)}..."`);
+                // Skip the first div (item name with Rare/Ex)
+                if (i === 0) return;
 
-                // Skip empty lines and the first line (item name with Rare/Ex)
-                if (lineText && i > 0) {
-                    // Clean up excessive whitespace
-                    const cleanedLine = lineText.replace(/\s+/g, ' ').trim();
-                    if (cleanedLine) {
-                        console.log(`    → Added: "${cleanedLine}"`);
+                // Check for explicit <br> tags first
+                const divHtml = $(childDiv).html();
+                if (divHtml && divHtml.includes('<br')) {
+                    // Split on <br> tags - these are actual visual line breaks
+                    const parts = divHtml.split(/<br\s*\/?>/i);
+                    parts.forEach((part, idx) => {
+                        const $part = $('<div>').html(part);
+                        const partText = cleanDivText($, $part.get(0)).trim();
+                        if (partText) {
+                            console.log(`    [${i}.${idx}] → Added (br-split): "${partText}"`);
+                            tooltipLines.push(partText);
+                        }
+                    });
+                } else {
+                    // No <br> tags - keep entire line together as-is
+                    const fullText = cleanDivText($, childDiv).trim();
+                    if (fullText) {
+                        const cleanedLine = fullText.replace(/\s+/g, ' ').trim();
+                        console.log(`  [${i}] → Added: "${cleanedLine}"`);
                         tooltipLines.push(cleanedLine);
                     }
                 }
