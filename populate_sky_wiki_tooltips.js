@@ -30,6 +30,10 @@ function dbNameToWikiName(dbName) {
         })
         .join('_');
 
+    // Special case for abjurations: Add colon after "Abjuration"
+    // earthen_abjuration_head → Earthen_Abjuration:_Head
+    wikiName = wikiName.replace(/_Abjuration_/g, '_Abjuration:_');
+
     // URL encode apostrophes
     wikiName = wikiName.replace(/'/g, '%27');
 
