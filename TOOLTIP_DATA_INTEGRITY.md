@@ -188,18 +188,126 @@ When adding new features or debugging tooltips:
 
 ## Future Improvements Needed
 
-### High Priority
-1. **Complete wiki description scraping** - Most critical for user experience
-2. **Import missing latent data** - Important for weapon value assessment
-3. **Add additional effect support** - Some weapons incomplete without this
+### ⚠️ CRITICAL PRIORITY - Comprehensive Wiki Scraping Project
+
+**Status**: PLANNED - Extremely Important
+**Start Date**: TBD
+**Test Set**: Sky Gear (Byakko's Haidate, Genbu's Kabuto, Kirin's Osode, etc.)
+
+This is a major undertaking to completely overhaul tooltip data by scraping the entire FFXI Fandom Wiki.
+
+**Objectives**:
+1. **Extract exact tooltip formatting** from wiki "Statistics" sections
+2. **Capture all hidden effects** listed on wiki pages
+3. **Update all missing item descriptions** with proper formatting
+4. **Discover and map unknown MOD definitions**
+5. **Match wiki formatting exactly** for every piece of gear
+6. **Create permanent storage** for wiki-formatted tooltip data
+
+**Wiki Structure** (Reference: https://ffxiclopedia.fandom.com/wiki/Crimson_Greaves):
+- URL Pattern: `https://ffxiclopedia.fandom.com/wiki/Item_Name` (Upper_Case format)
+- Target Section: "Statistics" - contains exact tooltip text
+- Hidden Effects: Listed separately under "Statistics"
+- Description: Full formatted description text
+
+**Problems This Solves**:
+- ❌ Attributes split across newlines in tooltips
+- ❌ Missing/incomplete descriptions
+- ❌ Unknown MOD definitions showing as "Mod###"
+- ❌ Hidden effects not displayed (e.g., Dragon Affinity)
+- ❌ Inconsistent formatting vs. actual game tooltips
+
+**Implementation Plan**:
+
+**Phase 1: Architecture & Test Set**
+1. Create `scrape_wiki_statistics.js` targeting "Statistics" sections
+2. Extract structured data:
+   - Tooltip text lines (exact formatting)
+   - Hidden effects
+   - Description text
+3. Test with Sky Gear items first (10-15 items)
+4. Validate formatting matches wiki exactly
+
+**Phase 2: Database Schema**
+1. Create `item_wiki_tooltips` table:
+   ```sql
+   CREATE TABLE item_wiki_tooltips (
+       item_id INT PRIMARY KEY REFERENCES item_basic(itemid),
+       tooltip_lines JSONB,           -- Array of formatted tooltip lines
+       hidden_effects JSONB,          -- Array of hidden effects
+       wiki_description TEXT,         -- Full description from wiki
+       mod_mappings JSONB,            -- Any discovered mod definitions
+       last_scraped TIMESTAMP,
+       wiki_url VARCHAR(500)
+   );
+   ```
+
+**Phase 3: Full Wiki Scraping**
+1. Scrape all equipment items (armor, weapons)
+2. Scrape all consumables with effects
+3. Scrape all pop items and key items with descriptions
+4. Rate-limit: 1 request per 500ms to avoid throttling
+5. Implement resume capability for interrupted scrapes
+6. Log all errors and missing items
+
+**Phase 4: Tooltip Rendering Update**
+1. Modify `buildItemStatLines()` to use wiki data if available
+2. Fall back to current mod-based system if wiki data missing
+3. Add "Source: Wiki" indicator for wiki-formatted tooltips
+4. Preserve Community Notes section for hidden effects
+
+**Phase 5: Validation & Testing**
+1. Compare wiki tooltips vs. current system for test set
+2. User acceptance testing with Sky Gear
+3. Fix any formatting discrepancies
+4. Document any items that can't be auto-formatted
+
+**Technical Considerations**:
+- Wiki pages may have inconsistent HTML structure
+- Some items may not have wiki pages
+- Hidden effects may be listed in various formats
+- Need robust HTML parsing (cheerio/jsdom)
+- Need error handling for 404s and malformed pages
+- Consider caching wiki HTML for debugging
+
+**Maintenance Strategy**:
+- Re-scrape quarterly for new items
+- Manual override system for incorrect wiki data
+- Track wiki page last-modified dates
+- Flag items where wiki data conflicts with database
+
+**Success Criteria**:
+✅ 95%+ of equipment items have wiki-formatted tooltips
+✅ All Sky Gear items perfectly match wiki formatting
+✅ Zero "Mod###" entries in tooltips for common gear
+✅ All hidden effects captured and displayed
+✅ No attributes split across newlines
+✅ Descriptions match wiki formatting exactly
+
+**Alternative Approaches**:
+- If ffxiclopedia is incomplete, also scrape bg-wiki.com
+- Manual data entry for critical items (relic, mythic, empyrean)
+- Community contribution system for missing data
+
+**Estimated Effort**:
+- Phase 1-2: 1-2 days
+- Phase 3: 2-3 days (depending on item count)
+- Phase 4-5: 1-2 days
+- **Total: ~1 week of focused development**
+
+---
+
+### High Priority (Post-Wiki Scraping)
+1. **Verify all enhanced relationships** - May be other special upgrade paths missing
+2. **Alternative description sources** - If ffxiclopedia is incomplete, try bg-wiki
 
 ### Medium Priority
-4. **Verify all enhanced relationships** - May be other special upgrade paths missing
-5. **Add more MOD_NAMES** - Discover through usage what other mods appear
+3. **Description quality check** - Some wiki descriptions may be malformed
+4. **MOD_NAMES completeness** - Ensure all mods from wiki are mapped
 
 ### Low Priority
-6. **Alternative description sources** - If ffxiclopedia is incomplete, try bg-wiki
-7. **Description quality check** - Some descriptions may be malformed
+5. **Tooltip performance optimization** - Cache wiki data in frontend
+6. **User-submitted corrections** - Allow reporting incorrect wiki data
 
 ---
 
