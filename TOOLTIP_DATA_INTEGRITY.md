@@ -192,6 +192,13 @@ If you see `Mod###` in a tooltip, that mod needs to be added to MOD_NAMES mappin
    - ✅ Correct: `WAR/MNK/BST/BRD/RNG`
    - ❌ Wrong: `WAR / MNK / BST / BRD / RNG`
 
+7. **Item Image Positioning**: Image icon aligned with item name, 2px lower from top
+   - Image and name both have padding from tooltip panel top
+   - Image top padding = Name top padding + 2px
+   - Ensures proper visual alignment with slight offset
+   - Image URL extracted from wiki Statistics section
+   - Stored in `item_wiki_tooltips.image_url` column
+
 ### Previous Formatting Fixes Applied
 - ✅ Haste: Now shows `Haste+5%` not `Haste+-5%`
 - ✅ Movement Speed: Now shows `Movement Speed+12%` not `Mod169+12`
