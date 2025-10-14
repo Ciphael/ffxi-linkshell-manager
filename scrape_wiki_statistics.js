@@ -28,13 +28,15 @@ for (const [modId, name] of Object.entries(MOD_NAMES)) {
 }
 
 // Test set: Sky Gear (armor), weapons, accessories
+// IMPORTANT: Wiki URLs use Title_Case for all words, including hyphenated compounds
+// Examples: Sune-Ate (not Sune-ate), Tonbo-Giri (not Tonbo-giri)
 const SKY_GEAR_TEST_SET = [
     // Armor (Rare/Ex)
     { db_name: 'byakkos_haidate', wiki_name: 'Byakko%27s_Haidate' },
     { db_name: 'genbus_kabuto', wiki_name: 'Genbu%27s_Kabuto' },
     { db_name: 'kirins_osode', wiki_name: 'Kirin%27s_Osode' },
     { db_name: 'seiryus_kote', wiki_name: 'Seiryu%27s_Kote' },
-    { db_name: 'suzakus_sune-ate', wiki_name: 'Suzaku%27s_Sune-ate' },
+    { db_name: 'suzakus_sune-ate', wiki_name: 'Suzaku%27s_Sune-Ate' }, // Note: Capital A in "Ate"
     { db_name: 'crimson_greaves', wiki_name: 'Crimson_Greaves' },
     { db_name: 'blood_greaves', wiki_name: 'Blood_Greaves' },
     // Armor (non-Rare/Ex)
