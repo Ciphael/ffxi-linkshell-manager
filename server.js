@@ -153,7 +153,7 @@ async function createPlannedDropsForBoss(eventId, eventBossId, mobDropId) {
         const dropsQuery = `
             SELECT
                 md.itemId,
-                COALESCE(ie.name, iw.name, ib.name, 'Unknown Item') as item_name,
+                ib.name as item_name,
                 md.itemRate,
                 md.dropType,
                 md.groupId,
@@ -379,7 +379,7 @@ app.get('/api/items/:itemName', async (req, res) => {
         const query = `
             SELECT
                 ib.itemid as item_id,
-                COALESCE(ie.name, iw.name, ib.name) as item_name,
+                ib.name as item_name,
                 it.log_name as display_name,
                 it.log_name_plural,
                 it.description,
@@ -447,7 +447,7 @@ app.get('/api/all-items', async (req, res) => {
         const query = `
             SELECT
                 ib.itemid as item_id,
-                COALESCE(ie.name, iw.name, ib.name) as item_name,
+                ib.name as item_name,
                 it.log_name as display_name,
                 it.log_name_plural,
                 it.description,
@@ -509,7 +509,7 @@ app.get('/api/market-rates', async (req, res) => {
         const dropQuery = `
             SELECT DISTINCT ON (md.itemId, m.mob_name)
                 md.itemId as item_id,
-                COALESCE(ie.name, iw.name, ib.name, 'Unknown Item') as item_name,
+                ib.name as item_name,
                 it.log_name as display_name,
                 it.log_name_plural,
                 it.description,
@@ -555,7 +555,7 @@ app.get('/api/market-rates', async (req, res) => {
             LEFT JOIN item_classifications ic ON md.itemId = ic.item_id
             LEFT JOIN mobs m ON md.dropId = m.dropid
             WHERE md.dropType IN (0, 1, 4) AND m.mob_name IS NOT NULL
-            ORDER BY m.mob_name, md.itemId, COALESCE(ie.name, iw.name, ib.name)
+            ORDER BY m.mob_name, md.itemId, ib.name
         `;
 
         const result = await pool.query(dropQuery);
@@ -627,11 +627,9 @@ app.put('/api/market-rates/:itemId', async (req, res) => {
             // Insert new - need to get item name first
             console.log(`Inserting new item ${itemId}`);
             const itemNameQuery = `
-                SELECT COALESCE(ie.name, iw.name, ib.name) as item_name
-                FROM (SELECT $1::integer as itemid) i
-                LEFT JOIN item_equipment ie ON i.itemid = ie.itemid
-                LEFT JOIN item_weapon iw ON i.itemid = iw.itemid
-                LEFT JOIN item_basic ib ON i.itemid = ib.itemid
+                SELECT ib.name as item_name
+                FROM item_basic ib
+                WHERE ib.itemid = $1::integer
             `;
             const itemNameResult = await pool.query(itemNameQuery, [itemId]);
             const itemName = itemNameResult.rows[0]?.item_name || 'Unknown Item';
@@ -767,7 +765,7 @@ app.get('/api/mob-droplist/:mobDropId/all-drops', async (req, res) => {
         const query = `
             SELECT
                 md.itemId,
-                COALESCE(ie.name, iw.name, ib.name, 'Unknown Item') as item_name,
+                ib.name as item_name,
                 md.itemRate,
                 md.dropType,
                 md.groupId,
@@ -1138,7 +1136,7 @@ app.get('/api/mobs/:dropId/drops', async (req, res) => {
         const query = `
             SELECT 
                 md.itemId,
-                COALESCE(ie.name, iw.name, ib.name, 'Unknown Item') as item_name,
+                ib.name as item_name,
                 md.itemRate,
                 md.dropType,
                 md.groupId,
