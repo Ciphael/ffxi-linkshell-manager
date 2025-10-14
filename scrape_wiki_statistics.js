@@ -12,7 +12,7 @@ const pool = new Pool({
 const MOD_NAMES = {
     1: 'DEF', 2: 'HP', 3: 'HPP', 5: 'MP', 6: 'MPP',
     8: 'STR', 9: 'DEX', 10: 'VIT', 11: 'AGI', 12: 'INT', 13: 'MND', 14: 'CHR',
-    16: 'Ice Resistance', 17: 'Wind Resistance', 18: 'Earth Resistance',
+    15: 'Fire Resistance', 16: 'Ice Resistance', 17: 'Wind Resistance', 18: 'Earth Resistance',
     19: 'Lightning Resistance', 20: 'Water Resistance', 21: 'Light Resistance', 22: 'Dark Resistance',
     23: 'Attack', 24: 'Ranged Attack', 25: 'Accuracy', 26: 'Ranged Accuracy',
     27: 'Enmity', 29: 'Haste', 30: 'Evasion', 31: 'Magic Evasion',
@@ -53,14 +53,16 @@ function parseWikiStats(tooltipLines) {
 
     for (const line of tooltipLines) {
         // Match patterns: "STAT: value" or "STAT +value" or "STAT value"
-        // Examples: "DEF: 42", "HP +15", "DEX +3", "DMG: 72"
+        // Examples: "DEF: 42", "HP +15", "DEX +3", "DMG: 72", "Attack +6"
         const patterns = [
             // Pattern 1: "STAT: value" (e.g., "DEF: 42", "DMG: 72")
             /([A-Z][A-Za-z\s]*?)\s*:\s*(\d+)/g,
-            // Pattern 2: "STAT +value" or "STAT -value" (e.g., "HP +15", "DEX +3")
-            /\b([A-Z][A-Z]+)\s*([+\-]\d+)/g,
-            // Pattern 3: Multi-word stats (e.g., "Ranged Attack +10")
-            /([A-Z][a-z]+(?:\s+[A-Z][a-z]+)+)\s*([+\-]\d+)/g
+            // Pattern 2: Multi-word stats (e.g., "Ranged Attack +10") - MUST be before single word
+            /([A-Z][a-z]+(?:\s+[A-Z][a-z]+)+)\s*([+\-]\d+)/g,
+            // Pattern 3: Single-word Title Case stats (e.g., "Attack +6", "Accuracy +10")
+            /\b([A-Z][a-z]+)\s*([+\-]\d+)/g,
+            // Pattern 4: All caps stats (e.g., "HP +15", "DEX +3")
+            /\b([A-Z][A-Z]+)\s*([+\-]\d+)/g
         ];
 
         for (const pattern of patterns) {
@@ -281,20 +283,32 @@ function cleanDivText($, elem) {
                     // Extract element name (e.g., "Ice" from "Resistance to Ice")
                     const element = alt.replace('Resistance to ', '').trim();
                     text += element + ' ';
+                } else if (alt && alt.includes('Resistance')) {
+                    // Handle alternate format (e.g., "Water Resistance" instead of "Resistance to Water")
+                    const element = alt.replace(' Resistance', '').trim();
+                    text += element + ' ';
                 }
             } else if (tagName === 'a') {
-                // Extract link text (e.g., "HP" from link to /wiki/Hit_Points)
-                // But also recursively process children in case there are images
-                const linkText = $(node).text();
-                if (linkText) {
-                    text += linkText;
+                // Check for elemental resistance links (e.g., title="Water Resistance")
+                const title = $(node).attr('title');
+                if (title && title.includes('Resistance')) {
+                    // Extract element name from title (e.g., "Water" from "Water Resistance")
+                    const element = title.replace(' Resistance', '').trim();
+                    text += element + ' ';
                 } else {
-                    // No text, might contain images - recurse
-                    text += cleanDivText($, node);
+                    // Extract link text (e.g., "HP" from link to /wiki/Hit_Points)
+                    // But also recursively process children in case there are images
+                    const linkText = $(node).text();
+                    if (linkText) {
+                        text += linkText;
+                    } else {
+                        // No text, might contain images - recurse
+                        text += cleanDivText($, node);
+                    }
                 }
             } else if (tagName === 'b' || tagName === 'strong') {
-                // Bold text - preserve content
-                text += $(node).text();
+                // Bold text - recursively process to handle links/images inside
+                text += cleanDivText($, node);
             } else if (tagName === 'span') {
                 // Skip spans that contain Rare/Ex images
                 const hasRareEx = $(node).find('img[alt="Rare"], img[alt="Exclusive"]').length > 0;
