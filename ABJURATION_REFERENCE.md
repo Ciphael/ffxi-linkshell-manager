@@ -8,61 +8,70 @@ In `item_classifications` table:
 - `converts_to_item_id`: The BASE cursed armor that the abjuration converts
 - `enhanced_1_id`: The +1 version of that armor
 
-## Known Abjurations (MUST VERIFY AGAINST WIKI)
+## Complete Abjuration Mappings (Verified 2025-10-15)
 
-### Earthen Abjuration (Adaman/Armada Set)
-- **Head**: cursed_celata → adaman_celata / armada_celata
-- **Body**: cursed_hauberk → adaman_hauberk / armada_hauberk
-- **Hands**: cursed_mufflers → adaman_mufflers / armada_mufflers
-- **Legs**: cursed_breeches → adaman_breeches / armada_breeches
-- **Feet**: cursed_sollerets → adaman_sollerets / armada_sollerets
+All mappings verified against https://ffxiclopedia.fandom.com/wiki/Category:Abjuration
 
-### Dryadic Abjuration (Koenig/Kaiser Set)
-- **Head**: shaded_*item* → koenig_*item* / kaiser_*item*
-- Must verify exact items against wiki
+### Earthen Abjuration (Adaman → Armada)
+- **Head**: adaman_celata → armada_celata
+- **Body**: adaman_hauberk → armada_hauberk
+- **Hands**: adaman_mufflers → armada_mufflers
+- **Legs**: adaman_breeches → armada_breeches
+- **Feet**: adaman_sollerets → armada_sollerets
 
-### Aquarian Abjuration (Zenith Set)
-- **Head**: cursed_crown → zenith_crown / zenith_crown_+1
-- **Body**: cursed_dalmatica → dalmatica / dalmatica_+1
-- **Hands**: cursed_mitts → zenith_mitts / zenith_mitts_+1
-- **Legs**: cursed_slacks → zenith_slacks / zenith_slacks_+1
-- **Feet**: cursed_pumps → zenith_pumps / zenith_pumps_+1
+### Dryadic Abjuration (Shura → Shura +1)
+- **Head**: shura_zunari_kabuto → shura_zunari_kabuto_+1
+- **Body**: shura_togi → shura_togi_+1
+- **Hands**: shura_kote → shura_kote_+1
+- **Legs**: shura_haidate → shura_haidate_+1
+- **Feet**: shura_sune-ate → shura_sune-ate_+1
 
-### Wyrmal Abjuration (Blood/Crimson Set)
-- Must verify exact items against wiki
+### Aquarian Abjuration (Zenith/Dalmatica → +1)
+- **Head**: zenith_crown → zenith_crown_+1
+- **Body**: dalmatica → dalmatica_+1
+- **Hands**: zenith_mitts → zenith_mitts_+1
+- **Legs**: zenith_slacks → zenith_slacks_+1
+- **Feet**: zenith_pumps → zenith_pumps_+1
 
-### Oceanid Abjuration
-- Must verify against wiki
+### Martial Abjuration (Koenig → Kaiser)
+- **Head**: koenig_schaller → kaiser_schaller
+- **Body**: koenig_cuirass → kaiser_cuirass
+- **Hands**: koenig_handschuhs → kaiser_handschuhs
+- **Legs**: koenig_diechlings → kaiser_diechlings
+- **Feet**: koenig_schuhs → kaiser_schuhs
 
-### Neptunal Abjuration
-- Must verify against wiki
+### Wyrmal Abjuration (Crimson → Blood)
+- **Head**: crimson_mask → blood_mask
+- **Body**: crimson_scale_mail → blood_scale_mail
+- **Hands**: crimson_finger_gauntlets → blood_finger_gauntlets
+- **Legs**: crimson_cuisses → blood_cuisses
+- **Feet**: crimson_greaves → blood_greaves
 
-### Martial Abjuration
-- Must verify against wiki
+### Neptunal Abjuration (Hecatomb → Hecatomb +1)
+- **Head**: hecatomb_cap → hecatomb_cap_+1
+- **Body**: hecatomb_harness → hecatomb_harness_+1
+- **Hands**: hecatomb_mittens → hecatomb_mittens_+1
+- **Legs**: hecatomb_subligar → hecatomb_subligar_+1
+- **Feet**: hecatomb_leggings → hecatomb_leggings_+1
 
-### Supernal Abjuration
-- Must verify against wiki
+## Notes on Other Abjuration Types
 
-### Abyssal Abjuration (Apogee Set)
-- **Head**: bewitched_crown → apogee_crown / apogee_crown_+1
-- **Body**: bewitched_dalmatica → apogee_dalmatica / apogee_dalmatica_+1
-- **Hands**: bewitched_mitts → apogee_mitts / apogee_mitts_+1
-- **Legs**: bewitched_slacks → apogee_slacks / apogee_slacks_+1
-- **Feet**: bewitched_pumps → apogee_pumps / apogee_pumps_+1
-
-### Arean Abjuration (Ryuo Set)
-- **Head**: vexed_somen → ryuo_somen / ryuo_somen_+1
-- **Body**: vexed_domaru → ryuo_domaru / ryuo_domaru_+1
-- **Hands**: vexed_kote → ryuo_tekko / ryuo_tekko_+1
-- **Legs**: vexed_hakama → ryuo_hakama / ryuo_hakama_+1
-- **Feet**: vexed_sune-ate → ryuo_sune-ate / ryuo_sune-ate_+1
+### Abyssal, Arean, Oceanid, Supernal Abjurations
+These abjurations are from later expansions and follow different mechanics. They are not part of the Sky Gods abjuration system documented here. If adding these to the database in the future, verify each mapping individually against the wiki.
 
 ## CRITICAL MISTAKE HISTORY
 
-### 2025-10-15: Earthen Abjuration Head
+### 2025-10-15: Earthen Abjuration Head Mapping Error
 - **WRONG**: adaman_barbuta (ID: 12420)
 - **CORRECT**: adaman_celata (ID: 12429)
 - **Lesson**: ALWAYS verify abjuration mappings against the official wiki page before adding to database
+
+### 2025-10-15: Missing All Enhanced Mappings
+- **PROBLEM**: 29 out of 30 abjurations had NULL for enhanced_1_id
+- **ROOT CAUSE**: Initial database population only included base item mappings
+- **SOLUTION**: Systematically verified all abjuration sets against wiki and populated all enhanced_1_id values
+- **IMPACT**: Fixed all 6 abjuration sets (Earthen, Dryadic, Aquarian, Martial, Wyrmal, Neptunal)
+- **Lesson**: Complete database population requires checking BOTH base and enhanced versions for all conversion items
 
 ## RULES FOR ABJURATION WORK
 
