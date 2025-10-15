@@ -127,7 +127,7 @@ function extractHiddenEffects($, statsTable) {
             foundHidden = true;
         }
 
-        if (foundHidden) {
+        if (foundHidden && nextElem.is('ul, ol')) {
             nextElem.find('li').each((j, li) => {
                 const effectText = $(li).text().trim();
                 if (effectText && !effectText.includes('Hidden Effect')) {
@@ -135,16 +135,7 @@ function extractHiddenEffects($, statsTable) {
                 }
             });
 
-            if (nextElem.is('ul, ol')) {
-                nextElem.find('li').each((j, li) => {
-                    const effectText = $(li).text().trim();
-                    if (effectText && !effectText.includes('Hidden Effect')) {
-                        hiddenEffects.push(effectText);
-                    }
-                });
-            }
-
-            if (foundHidden && nextElem.next().is('h2, h3, h4')) {
+            if (nextElem.next().is('h2, h3, h4')) {
                 break;
             }
         }
@@ -245,18 +236,49 @@ async function scrapeWikiPage(wikiName) {
                 if (divHtml && divHtml.includes('<br')) {
                     const parts = divHtml.split(/<br\s*\/?>/i);
                     parts.forEach((part) => {
-                        const $part = $('<div>').html(part);
-                        // Only trim trailing spaces, preserve leading spaces for indentation
-                        const partText = cleanDivText($, $part.get(0)).replace(/\s+$/g, '');
-                        if (partText) {
-                            tooltipLines.push(partText);
+                        if (!part.trim()) return;
+
+                        // Check if this part has multiple bold tags (stats crammed together)
+                        const boldCount = (part.match(/<b[^>]*>/gi) || []).length;
+                        if (boldCount > 1) {
+                            // Split on bold tags to separate stats
+                            const subParts = part.split(/(?=<b[^>]*>)/i);
+                            subParts.forEach((subPart) => {
+                                if (!subPart.trim()) return;
+                                const $subPart = $('<div>').html(subPart);
+                                const subPartText = cleanDivText($, $subPart.get(0)).trim();
+                                if (subPartText) {
+                                    tooltipLines.push(subPartText);
+                                }
+                            });
+                        } else {
+                            const $part = $('<div>').html(part);
+                            // Only trim trailing spaces, preserve leading spaces for indentation
+                            const partText = cleanDivText($, $part.get(0)).replace(/\s+$/g, '');
+                            if (partText) {
+                                tooltipLines.push(partText);
+                            }
                         }
                     });
                 } else {
-                    const fullText = cleanDivText($, childDiv).trim();
-                    if (fullText) {
-                        const cleanedLine = fullText.replace(/\s+/g, ' ').trim();
-                        tooltipLines.push(cleanedLine);
+                    // Check if div has multiple bold tags (multiple stats crammed together)
+                    const boldCount = (divHtml.match(/<b[^>]*>/gi) || []).length;
+                    if (boldCount > 1) {
+                        // Split on bold tags to separate stats
+                        const parts = divHtml.split(/(?=<b[^>]*>)/i);
+                        parts.forEach((part) => {
+                            if (!part.trim()) return;
+                            const $part = $('<div>').html(part);
+                            const partText = cleanDivText($, $part.get(0)).trim();
+                            if (partText) {
+                                tooltipLines.push(partText);
+                            }
+                        });
+                    } else {
+                        const fullText = cleanDivText($, childDiv).trim();
+                        if (fullText) {
+                            tooltipLines.push(fullText);
+                        }
                     }
                 }
             });
