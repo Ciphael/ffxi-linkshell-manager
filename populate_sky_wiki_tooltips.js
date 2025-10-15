@@ -339,17 +339,24 @@ async function insertWikiTooltip(itemId, wikiData) {
     try {
         console.log('=== Sky Items Wiki Tooltip Population ===\n');
 
-        // Get all Sky items from database
+        // Get all Sky items OR items missing tooltips from database
         const itemsResult = await pool.query(`
             SELECT DISTINCT
                 ib.itemid,
                 ib.name as item_name,
-                m.mob_name
+                COALESCE(m.mob_name, 'Other') as mob_name
             FROM item_basic ib
-            JOIN mob_droplist md ON ib.itemid = md.itemid
-            JOIN mobs m ON md.dropid = m.dropid
-            WHERE m.mob_name IN ('Byakko', 'Genbu', 'Suzaku', 'Seiryu', 'Kirin')
-            ORDER BY m.mob_name, ib.name
+            LEFT JOIN mob_droplist md ON ib.itemid = md.itemid
+            LEFT JOIN mobs m ON md.dropid = m.dropid
+            LEFT JOIN item_wiki_tooltips iwt ON ib.itemid = iwt.item_id
+            WHERE (m.mob_name IN ('Byakko', 'Genbu', 'Suzaku', 'Seiryu', 'Kirin'))
+               OR (iwt.item_id IS NULL AND ib.name IN (
+                   'gem_of_the_east', 'gem_of_the_south', 'gem_of_the_west', 'gem_of_the_north',
+                   'libation_abjuration', 'oblation_abjuration', 'zenith_crown', 'zenith_crown_+1',
+                   'scarecrow_scythe', 'koenig_handschuhs', 'kaiser_handschuhs',
+                   'crimson_cuisses', 'crimson_finger_gauntlets', 'zenith_mitts', 'zenith_mitts_+1'
+               ))
+            ORDER BY mob_name, ib.name
         `);
 
         console.log(`Found ${itemsResult.rows.length} Sky items to process\n`);
