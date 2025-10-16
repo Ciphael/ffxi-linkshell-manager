@@ -509,6 +509,8 @@ app.get('/api/all-items', async (req, res) => {
 // Get all items from all bosses with their rates and boss info
 app.get('/api/market-rates', async (req, res) => {
     try {
+        console.log('[/api/market-rates] Starting query...');
+
         // Main query for mob drops
         const dropQuery = `
             SELECT DISTINCT ON (md.itemId, m.mob_name)
@@ -561,6 +563,10 @@ app.get('/api/market-rates', async (req, res) => {
             WHERE md.dropType IN (0, 1, 4) AND m.mob_name IS NOT NULL
             ORDER BY m.mob_name, md.itemId, ib.name
         `;
+
+        console.log('[/api/market-rates] Executing drop query...');
+        const dropResult = await pool.query(dropQuery);
+        console.log(`[/api/market-rates] Drop query returned ${dropResult.rows.length} items`);
 
         // Query for converted-to items (enhanced items and abjuration targets)
         const convertedItemsQuery = `
@@ -620,16 +626,22 @@ app.get('/api/market-rates', async (req, res) => {
             )
         `;
 
-        const dropResult = await pool.query(dropQuery);
+        console.log('[/api/market-rates] Executing converted items query...');
         const convertedResult = await pool.query(convertedItemsQuery);
+        console.log(`[/api/market-rates] Converted items query returned ${convertedResult.rows.length} items`);
 
         // Combine both results
         const allItems = [...dropResult.rows, ...convertedResult.rows];
+        console.log(`[/api/market-rates] Total items: ${allItems.length}`);
 
         res.json(allItems);
     } catch (error) {
-        console.error('Error fetching market rates:', error);
-        res.status(500).json({ error: 'Failed to fetch market rates' });
+        console.error('[/api/market-rates] ERROR:', error.message);
+        console.error('[/api/market-rates] Stack:', error.stack);
+        res.status(500).json({
+            error: 'Failed to fetch market rates',
+            details: error.message
+        });
     }
 });
 
