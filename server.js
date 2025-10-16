@@ -561,7 +561,7 @@ app.get('/api/market-rates', async (req, res) => {
             LEFT JOIN item_classifications ic ON md.itemId = ic.item_id
             LEFT JOIN mobs m ON md.dropId = m.dropid
             WHERE md.dropType IN (0, 1, 4) AND m.mob_name IS NOT NULL
-            ORDER BY m.mob_name, md.itemId, ib.name
+            ORDER BY md.itemId, m.mob_name, ib.name
         `;
 
         console.log('[/api/market-rates] Executing drop query...');
