@@ -513,55 +513,86 @@ app.get('/api/market-rates', async (req, res) => {
 
         // Main query for mob drops
         const dropQuery = `
-            SELECT DISTINCT ON (md.itemId, m.mob_name)
-                md.itemId as item_id,
-                ib.name as item_name,
-                it.log_name as display_name,
-                it.log_name_plural,
-                it.description,
-                ic.classification,
-                ic.points_required,
-                ic.market_rate,
-                ic.estimated_value,
-                ic.converts_to_item_id,
-                ic.enhanced_1_id,
-                ic.enhanced_2_id,
-                ic.enhanced_3_id,
-                COALESCE(m.mob_name, 'Unknown Boss') as mob_name,
-                ib.is_rare,
-                ib.is_ex,
-                ie.level as equipment_level,
-                ie.ilevel as equipment_ilevel,
-                ie.jobs as equipment_jobs,
-                ie.slot as equipment_slot,
-                ie.race as equipment_race,
-                iw.skill as weapon_skill,
-                iw.delay as weapon_delay,
-                iw.dmg as weapon_dmg,
-                iw."dmgType" as weapon_dmg_type,
-                iu."maxCharges" as enchantment_charges,
-                iu."useDelay" as enchantment_use_delay,
-                iu."reuseDelay" as enchantment_reuse_delay,
+            SELECT
+                base_data.item_id,
+                base_data.item_name,
+                base_data.display_name,
+                base_data.log_name_plural,
+                base_data.description,
+                base_data.classification,
+                base_data.points_required,
+                base_data.market_rate,
+                base_data.estimated_value,
+                base_data.converts_to_item_id,
+                base_data.enhanced_1_id,
+                base_data.enhanced_2_id,
+                base_data.enhanced_3_id,
+                base_data.mob_name,
+                base_data.is_rare,
+                base_data.is_ex,
+                base_data.equipment_level,
+                base_data.equipment_ilevel,
+                base_data.equipment_jobs,
+                base_data.equipment_slot,
+                base_data.equipment_race,
+                base_data.weapon_skill,
+                base_data.weapon_delay,
+                base_data.weapon_dmg,
+                base_data.weapon_dmg_type,
+                base_data.enchantment_charges,
+                base_data.enchantment_use_delay,
+                base_data.enchantment_reuse_delay,
                 (
                     SELECT json_agg(json_build_object('modId', "modId", 'value', value))
                     FROM item_mods im
-                    WHERE im."itemId" = md.itemId
+                    WHERE im."itemId" = base_data.item_id
                 ) as mods,
                 (
                     SELECT json_agg(json_build_object('modId', "modId", 'value', value, 'latentId', "latentId", 'latentParam', "latentParam"))
                     FROM item_latents il
-                    WHERE il."itemId" = md.itemId AND il."latentId" = 59
+                    WHERE il."itemId" = base_data.item_id AND il."latentId" = 59
                 ) as latents
-            FROM mob_droplist md
-            LEFT JOIN item_equipment ie ON md.itemId = ie."itemId"
-            LEFT JOIN item_weapon iw ON md.itemId = iw."itemId"
-            LEFT JOIN item_basic ib ON md.itemId = ib.itemid
-            LEFT JOIN item_text it ON md.itemId = it.itemid
-            LEFT JOIN item_usable iu ON md.itemId = iu.itemid AND iu.activation = 3
-            LEFT JOIN item_classifications ic ON md.itemId = ic.item_id
-            LEFT JOIN mobs m ON md.dropId = m.dropid
-            WHERE md.dropType IN (0, 1, 4) AND m.mob_name IS NOT NULL
-            ORDER BY md.itemId, m.mob_name, ib.name
+            FROM (
+                SELECT DISTINCT ON (md.itemId, m.mob_name)
+                    md.itemId as item_id,
+                    ib.name as item_name,
+                    it.log_name as display_name,
+                    it.log_name_plural,
+                    it.description,
+                    ic.classification,
+                    ic.points_required,
+                    ic.market_rate,
+                    ic.estimated_value,
+                    ic.converts_to_item_id,
+                    ic.enhanced_1_id,
+                    ic.enhanced_2_id,
+                    ic.enhanced_3_id,
+                    COALESCE(m.mob_name, 'Unknown Boss') as mob_name,
+                    ib.is_rare,
+                    ib.is_ex,
+                    ie.level as equipment_level,
+                    ie.ilevel as equipment_ilevel,
+                    ie.jobs as equipment_jobs,
+                    ie.slot as equipment_slot,
+                    ie.race as equipment_race,
+                    iw.skill as weapon_skill,
+                    iw.delay as weapon_delay,
+                    iw.dmg as weapon_dmg,
+                    iw."dmgType" as weapon_dmg_type,
+                    iu."maxCharges" as enchantment_charges,
+                    iu."useDelay" as enchantment_use_delay,
+                    iu."reuseDelay" as enchantment_reuse_delay
+                FROM mob_droplist md
+                LEFT JOIN item_equipment ie ON md.itemId = ie."itemId"
+                LEFT JOIN item_weapon iw ON md.itemId = iw."itemId"
+                LEFT JOIN item_basic ib ON md.itemId = ib.itemid
+                LEFT JOIN item_text it ON md.itemId = it.itemid
+                LEFT JOIN item_usable iu ON md.itemId = iu.itemid AND iu.activation = 3
+                LEFT JOIN item_classifications ic ON md.itemId = ic.item_id
+                LEFT JOIN mobs m ON md.dropId = m.dropid
+                WHERE md.dropType IN (0, 1, 4) AND m.mob_name IS NOT NULL
+                ORDER BY md.itemId, m.mob_name, ib.name
+            ) base_data
         `;
 
         console.log('[/api/market-rates] Executing drop query...');
@@ -570,60 +601,91 @@ app.get('/api/market-rates', async (req, res) => {
 
         // Query for converted-to items (enhanced items and abjuration targets)
         const convertedItemsQuery = `
-            SELECT DISTINCT
-                ib.itemid as item_id,
-                ib.name as item_name,
-                it.log_name as display_name,
-                it.log_name_plural,
-                it.description,
-                ic.classification,
-                ic.points_required,
-                ic.market_rate,
-                ic.estimated_value,
-                ic.converts_to_item_id,
-                ic.enhanced_1_id,
-                ic.enhanced_2_id,
-                ic.enhanced_3_id,
-                'Converted Items' as mob_name,
-                ib.is_rare,
-                ib.is_ex,
-                ie.level as equipment_level,
-                ie.ilevel as equipment_ilevel,
-                ie.jobs as equipment_jobs,
-                ie.slot as equipment_slot,
-                ie.race as equipment_race,
-                iw.skill as weapon_skill,
-                iw.delay as weapon_delay,
-                iw.dmg as weapon_dmg,
-                iw."dmgType" as weapon_dmg_type,
-                iu."maxCharges" as enchantment_charges,
-                iu."useDelay" as enchantment_use_delay,
-                iu."reuseDelay" as enchantment_reuse_delay,
+            SELECT
+                base_data.item_id,
+                base_data.item_name,
+                base_data.display_name,
+                base_data.log_name_plural,
+                base_data.description,
+                base_data.classification,
+                base_data.points_required,
+                base_data.market_rate,
+                base_data.estimated_value,
+                base_data.converts_to_item_id,
+                base_data.enhanced_1_id,
+                base_data.enhanced_2_id,
+                base_data.enhanced_3_id,
+                base_data.mob_name,
+                base_data.is_rare,
+                base_data.is_ex,
+                base_data.equipment_level,
+                base_data.equipment_ilevel,
+                base_data.equipment_jobs,
+                base_data.equipment_slot,
+                base_data.equipment_race,
+                base_data.weapon_skill,
+                base_data.weapon_delay,
+                base_data.weapon_dmg,
+                base_data.weapon_dmg_type,
+                base_data.enchantment_charges,
+                base_data.enchantment_use_delay,
+                base_data.enchantment_reuse_delay,
                 (
                     SELECT json_agg(json_build_object('modId', "modId", 'value', value))
                     FROM item_mods im
-                    WHERE im."itemId" = ib.itemid
+                    WHERE im."itemId" = base_data.item_id
                 ) as mods,
                 (
                     SELECT json_agg(json_build_object('modId', "modId", 'value', value, 'latentId', "latentId", 'latentParam', "latentParam"))
                     FROM item_latents il
-                    WHERE il."itemId" = ib.itemid AND il."latentId" = 59
+                    WHERE il."itemId" = base_data.item_id AND il."latentId" = 59
                 ) as latents
-            FROM item_basic ib
-            LEFT JOIN item_equipment ie ON ib.itemid = ie."itemId"
-            LEFT JOIN item_weapon iw ON ib.itemid = iw."itemId"
-            LEFT JOIN item_text it ON ib.itemid = it.itemid
-            LEFT JOIN item_usable iu ON ib.itemid = iu.itemid AND iu.activation = 3
-            LEFT JOIN item_classifications ic ON ib.itemid = ic.item_id
-            WHERE ib.itemid IN (
-                SELECT enhanced_1_id FROM item_classifications WHERE enhanced_1_id IS NOT NULL
-                UNION
-                SELECT enhanced_2_id FROM item_classifications WHERE enhanced_2_id IS NOT NULL
-                UNION
-                SELECT enhanced_3_id FROM item_classifications WHERE enhanced_3_id IS NOT NULL
-                UNION
-                SELECT converts_to_item_id FROM item_classifications WHERE converts_to_item_id IS NOT NULL
-            )
+            FROM (
+                SELECT DISTINCT
+                    ib.itemid as item_id,
+                    ib.name as item_name,
+                    it.log_name as display_name,
+                    it.log_name_plural,
+                    it.description,
+                    ic.classification,
+                    ic.points_required,
+                    ic.market_rate,
+                    ic.estimated_value,
+                    ic.converts_to_item_id,
+                    ic.enhanced_1_id,
+                    ic.enhanced_2_id,
+                    ic.enhanced_3_id,
+                    'Converted Items' as mob_name,
+                    ib.is_rare,
+                    ib.is_ex,
+                    ie.level as equipment_level,
+                    ie.ilevel as equipment_ilevel,
+                    ie.jobs as equipment_jobs,
+                    ie.slot as equipment_slot,
+                    ie.race as equipment_race,
+                    iw.skill as weapon_skill,
+                    iw.delay as weapon_delay,
+                    iw.dmg as weapon_dmg,
+                    iw."dmgType" as weapon_dmg_type,
+                    iu."maxCharges" as enchantment_charges,
+                    iu."useDelay" as enchantment_use_delay,
+                    iu."reuseDelay" as enchantment_reuse_delay
+                FROM item_basic ib
+                LEFT JOIN item_equipment ie ON ib.itemid = ie."itemId"
+                LEFT JOIN item_weapon iw ON ib.itemid = iw."itemId"
+                LEFT JOIN item_text it ON ib.itemid = it.itemid
+                LEFT JOIN item_usable iu ON ib.itemid = iu.itemid AND iu.activation = 3
+                LEFT JOIN item_classifications ic ON ib.itemid = ic.item_id
+                WHERE ib.itemid IN (
+                    SELECT enhanced_1_id FROM item_classifications WHERE enhanced_1_id IS NOT NULL
+                    UNION
+                    SELECT enhanced_2_id FROM item_classifications WHERE enhanced_2_id IS NOT NULL
+                    UNION
+                    SELECT enhanced_3_id FROM item_classifications WHERE enhanced_3_id IS NOT NULL
+                    UNION
+                    SELECT converts_to_item_id FROM item_classifications WHERE converts_to_item_id IS NOT NULL
+                )
+            ) base_data
         `;
 
         console.log('[/api/market-rates] Executing converted items query...');
