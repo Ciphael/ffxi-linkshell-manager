@@ -3530,9 +3530,10 @@ async function handleEventCreateOrUpdate(event_id, eventData) {
 
             // Insert new signups
             for (const signup of signups) {
-                // Try to find matching linkshell member by discord_id
+                // Try to find matching user by discord_id
+                // Only link to confirmed/active users
                 const memberResult = await pool.query(
-                    'SELECT id FROM linkshell_members WHERE discord_id = $1',
+                    'SELECT id FROM users WHERE discord_id = $1 AND is_active = true',
                     [signup.discord_id]
                 );
 
