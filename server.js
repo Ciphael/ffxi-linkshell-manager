@@ -1424,7 +1424,7 @@ app.post('/api/events/:eventId/register', async (req, res) => {
 app.get('/api/events/:eventId/participants', async (req, res) => {
     try {
         const { eventId } = req.params;
-        
+
         const result = await pool.query(
             `SELECT ep.*, u.character_name, u.role as user_role
              FROM event_participants ep
@@ -1433,11 +1433,40 @@ app.get('/api/events/:eventId/participants', async (req, res) => {
              ORDER BY ep.registered_at`,
             [eventId]
         );
-        
+
         res.json(result.rows);
     } catch (error) {
         console.error('Error fetching participants:', error);
         res.status(500).json({ error: 'Failed to fetch participants' });
+    }
+});
+
+// Get Discord signups for an event (from Raid-Helper)
+app.get('/api/events/:eventId/signups', async (req, res) => {
+    try {
+        const { eventId } = req.params;
+
+        const result = await pool.query(`
+            SELECT
+                es.id,
+                es.discord_id,
+                es.discord_username,
+                es.role,
+                es.status,
+                es.signed_up_at,
+                lm.id as member_id,
+                lm.name as member_name,
+                lm.character_name
+            FROM event_signups es
+            LEFT JOIN linkshell_members lm ON es.member_id = lm.id
+            WHERE es.event_id = $1
+            ORDER BY es.signed_up_at ASC
+        `, [eventId]);
+
+        res.json(result.rows);
+    } catch (error) {
+        console.error('Error fetching signups:', error);
+        res.status(500).json({ error: 'Failed to fetch signups' });
     }
 });
 
@@ -3343,6 +3372,239 @@ async function runMigrations() {
         console.log('All migrations processed');
     } catch (error) {
         console.error('Migration error:', error);
+    }
+}
+
+// ============ RAID-HELPER WEBHOOK INTEGRATION ============
+
+/**
+ * Raid-Helper Webhook Endpoint
+ * Receives event data from Discord and syncs it to the database
+ *
+ * Expected payload structure (this is based on common Discord bot patterns):
+ * {
+ *   event_id: "discord_event_id",
+ *   action: "created" | "updated" | "deleted" | "signup" | "unsignup",
+ *   event: {
+ *     title: "Event Title",
+ *     description: "Event Description",
+ *     start_time: "ISO 8601 timestamp",
+ *     end_time: "ISO 8601 timestamp",
+ *     channel_id: "discord_channel_id",
+ *     message_id: "discord_message_id",
+ *     leader: { discord_id: "...", username: "..." },
+ *     signups: [{ discord_id: "...", username: "...", role: "..." }]
+ *   }
+ * }
+ */
+app.post('/api/webhooks/raid-helper', async (req, res) => {
+    try {
+        console.log('[Raid-Helper Webhook] Received payload:', JSON.stringify(req.body, null, 2));
+
+        const { event_id, action, event } = req.body;
+
+        if (!event_id || !action) {
+            return res.status(400).json({ error: 'Missing required fields: event_id, action' });
+        }
+
+        // Handle different webhook actions
+        switch (action) {
+            case 'created':
+            case 'updated':
+                await handleEventCreateOrUpdate(event_id, event);
+                break;
+
+            case 'deleted':
+                await handleEventDelete(event_id);
+                break;
+
+            case 'signup':
+            case 'unsignup':
+                await handleSignupChange(event_id, event);
+                break;
+
+            default:
+                console.log(`[Raid-Helper Webhook] Unknown action: ${action}`);
+        }
+
+        res.status(200).json({ success: true, message: `Event ${action} processed successfully` });
+
+    } catch (error) {
+        console.error('[Raid-Helper Webhook] Error processing webhook:', error);
+        res.status(500).json({ error: 'Internal server error', details: error.message });
+    }
+});
+
+/**
+ * Create or update an event from Discord
+ */
+async function handleEventCreateOrUpdate(event_id, eventData) {
+    try {
+        const {
+            title,
+            description = '',
+            start_time,
+            end_time,
+            channel_id,
+            message_id,
+            leader,
+            signups = []
+        } = eventData;
+
+        // Calculate duration in minutes
+        const startDate = new Date(start_time);
+        const endDate = end_time ? new Date(end_time) : new Date(startDate.getTime() + 3 * 60 * 60 * 1000); // Default 3 hours
+        const durationMinutes = Math.round((endDate - startDate) / (1000 * 60));
+
+        await pool.query('BEGIN');
+
+        // Check if event already exists
+        const existing = await pool.query(
+            'SELECT id FROM events WHERE raid_helper_id = $1',
+            [event_id]
+        );
+
+        let dbEventId;
+
+        if (existing.rows.length > 0) {
+            // Update existing event
+            const result = await pool.query(`
+                UPDATE events
+                SET event_name = $1,
+                    description = $2,
+                    event_date = $3,
+                    duration_minutes = $4,
+                    discord_channel_id = $5,
+                    discord_message_id = $6
+                WHERE raid_helper_id = $7
+                RETURNING id
+            `, [title, description, start_time, durationMinutes, channel_id, message_id, event_id]);
+
+            dbEventId = result.rows[0].id;
+            console.log(`[Raid-Helper] Updated event ${dbEventId} (Discord ID: ${event_id})`);
+
+        } else {
+            // Create new event
+            const result = await pool.query(`
+                INSERT INTO events (
+                    event_name,
+                    event_type,
+                    event_date,
+                    duration_minutes,
+                    description,
+                    meeting_location,
+                    max_participants,
+                    base_points,
+                    raid_helper_id,
+                    discord_channel_id,
+                    discord_message_id,
+                    is_from_discord,
+                    created_by,
+                    raid_leader
+                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $13)
+                RETURNING id
+            `, [
+                title,
+                'Sky',  // Default event type
+                start_time,
+                durationMinutes,
+                description,
+                'Discord',  // Meeting location
+                18,  // Default max participants
+                10,  // Default base points
+                event_id,
+                channel_id,
+                message_id,
+                true,  // is_from_discord
+                leader?.discord_id || 'discord_bot'
+            ]);
+
+            dbEventId = result.rows[0].id;
+            console.log(`[Raid-Helper] Created event ${dbEventId} (Discord ID: ${event_id})`);
+        }
+
+        // Sync signups
+        if (signups && signups.length > 0) {
+            // Clear existing signups
+            await pool.query('DELETE FROM event_signups WHERE event_id = $1', [dbEventId]);
+
+            // Insert new signups
+            for (const signup of signups) {
+                // Try to find matching linkshell member by discord_id
+                const memberResult = await pool.query(
+                    'SELECT id FROM linkshell_members WHERE discord_id = $1',
+                    [signup.discord_id]
+                );
+
+                const memberId = memberResult.rows.length > 0 ? memberResult.rows[0].id : null;
+
+                await pool.query(`
+                    INSERT INTO event_signups (
+                        event_id,
+                        member_id,
+                        discord_id,
+                        discord_username,
+                        role,
+                        status
+                    ) VALUES ($1, $2, $3, $4, $5, $6)
+                    ON CONFLICT (event_id, discord_id) DO UPDATE
+                    SET member_id = EXCLUDED.member_id,
+                        discord_username = EXCLUDED.discord_username,
+                        role = EXCLUDED.role,
+                        status = EXCLUDED.status
+                `, [
+                    dbEventId,
+                    memberId,
+                    signup.discord_id,
+                    signup.username,
+                    signup.role || 'Member',
+                    signup.status || 'accepted'
+                ]);
+            }
+
+            console.log(`[Raid-Helper] Synced ${signups.length} signups for event ${dbEventId}`);
+        }
+
+        await pool.query('COMMIT');
+
+    } catch (error) {
+        await pool.query('ROLLBACK');
+        console.error('[Raid-Helper] Error in handleEventCreateOrUpdate:', error);
+        throw error;
+    }
+}
+
+/**
+ * Delete an event from Discord
+ */
+async function handleEventDelete(event_id) {
+    try {
+        const result = await pool.query(
+            'DELETE FROM events WHERE raid_helper_id = $1 RETURNING id',
+            [event_id]
+        );
+
+        if (result.rows.length > 0) {
+            console.log(`[Raid-Helper] Deleted event ${result.rows[0].id} (Discord ID: ${event_id})`);
+        } else {
+            console.log(`[Raid-Helper] Event ${event_id} not found for deletion`);
+        }
+    } catch (error) {
+        console.error('[Raid-Helper] Error in handleEventDelete:', error);
+        throw error;
+    }
+}
+
+/**
+ * Handle signup/unsignup changes
+ */
+async function handleSignupChange(event_id, eventData) {
+    try {
+        // Re-sync all signups (easier than tracking individual changes)
+        await handleEventCreateOrUpdate(event_id, eventData);
+    } catch (error) {
+        console.error('[Raid-Helper] Error in handleSignupChange:', error);
+        throw error;
     }
 }
 

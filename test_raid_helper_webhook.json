@@ -1,0 +1,42 @@
+{
+  "event_id": "test_event_12345",
+  "action": "created",
+  "event": {
+    "title": "Sky Farm - Byakko Test",
+    "description": "Testing Discord integration - Farming Byakko for drops",
+    "start_time": "2025-10-20T20:00:00Z",
+    "end_time": "2025-10-20T23:00:00Z",
+    "channel_id": "test_channel_987654",
+    "message_id": "test_message_111222",
+    "leader": {
+      "discord_id": "123456789012345678",
+      "username": "RaidLeader#1234"
+    },
+    "signups": [
+      {
+        "discord_id": "111111111111111111",
+        "username": "Tank1#5678",
+        "role": "Tank",
+        "status": "accepted"
+      },
+      {
+        "discord_id": "222222222222222222",
+        "username": "Healer1#9999",
+        "role": "Healer",
+        "status": "accepted"
+      },
+      {
+        "discord_id": "333333333333333333",
+        "username": "DD1#0001",
+        "role": "DD",
+        "status": "accepted"
+      },
+      {
+        "discord_id": "444444444444444444",
+        "username": "DD2#0002",
+        "role": "DD",
+        "status": "tentative"
+      }
+    ]
+  }
+}

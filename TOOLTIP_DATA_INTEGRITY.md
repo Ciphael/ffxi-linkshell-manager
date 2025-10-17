@@ -524,5 +524,68 @@ Use these items to verify tooltip functionality:
   - Confirmed enhanced relationships now populated
   - Added MOD_NAMES reference
 
-**Last Updated**: 2025-01-13
+---
+
+## NEW PROJECT: Raid-Helper Discord Integration 🆕
+
+**Status**: In Development (Started: 2025-10-17)
+**Priority**: High
+**Documentation**: See `RAID_HELPER_INTEGRATION.md` and `SESSION_SUMMARY_2025-10-17.md`
+
+### Overview
+
+Integrating Discord's Raid-Helper bot to automatically sync raid events from Discord to the website.
+
+### Implementation Progress
+
+✅ **Completed**:
+- Database schema changes (`migrations/032_raid_helper_integration.sql`)
+  - Added `raid_helper_id`, `discord_channel_id`, `discord_message_id`, `is_from_discord` to events
+  - Added `discord_id`, `discord_username` to linkshell_members
+  - Created new `event_signups` table for tracking Discord signups
+- Webhook endpoint (`POST /api/webhooks/raid-helper` in server.js)
+- Event sync logic (create, update, delete, signup tracking)
+- Comprehensive documentation
+
+⬜ **Pending**:
+- Deploy to Railway and run migration
+- Configure Raid-Helper webhook in Discord
+- Add `GET /api/events/:eventId/signups` endpoint
+- Update frontend to display Discord-originated events
+- Test with real Discord events
+- Add webhook signature verification
+- Link Discord IDs to linkshell members
+
+### Architecture
+
+```
+Discord (Raid-Helper) → Webhook → Backend → Database → Frontend
+```
+
+Events created in Discord automatically appear on the website with full participant lists.
+
+### Webhook URL
+
+```
+https://ffxi-linkshell-manager-production.up.railway.app/api/webhooks/raid-helper
+```
+
+### Next Steps
+
+1. Configure Raid-Helper in Discord (try `/webhook` or `/settings`)
+2. Deploy backend changes to Railway
+3. Test webhook with curl/Postman
+4. Create test event in Discord
+5. Verify event appears on website
+
+### Key Files
+
+- `RAID_HELPER_INTEGRATION.md` - Complete integration guide
+- `SESSION_SUMMARY_2025-10-17.md` - Session notes and progress
+- `migrations/032_raid_helper_integration.sql` - Database changes
+- `server.js` (lines 3349-3580) - Webhook endpoint
+
+---
+
+**Last Updated**: 2025-10-17
 **Maintained By**: Development Team

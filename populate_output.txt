@@ -1,0 +1,336 @@
+=== Sky Items Wiki Tooltip Population ===
+
+Found 69 Sky items to process
+
+[1/69] aquarian_abjuration_head (Byakko)
+  Wiki: Aquarian_Abjuration:_Head
+  ✓ Scraped 6 tooltip lines, description: Yes
+  ✅ Inserted into database
+
+[2/69] behemoth_hide (Byakko)
+  Wiki: Behemoth_Hide
+  ✓ Scraped 1 tooltip lines, description: No
+  ✅ Inserted into database
+
+[3/69] byakkos_axe (Byakko)
+  Wiki: Byakko%27s_Axe
+  ✓ Scraped 5 tooltip lines, description: No
+  ✅ Inserted into database
+
+[4/69] byakkos_haidate (Byakko)
+  Wiki: Byakko%27s_Haidate
+  ✓ Scraped 4 tooltip lines, description: Yes
+  ✅ Inserted into database
+
+[5/69] damascus_ingot (Byakko)
+  Wiki: Damascus_Ingot
+  ✓ Scraped 3 tooltip lines, description: No
+  ✅ Inserted into database
+
+[6/69] divine_log (Byakko)
+  Wiki: Divine_Log
+  ✓ Scraped 2 tooltip lines, description: Yes
+  ✅ Inserted into database
+
+[7/69] dryadic_abjuration_legs (Byakko)
+  Wiki: Dryadic_Abjuration:_Legs
+  ✓ Scraped 6 tooltip lines, description: Yes
+  ✅ Inserted into database
+
+[8/69] earthen_abjuration_feet (Byakko)
+  Wiki: Earthen_Abjuration:_Feet
+  ✓ Scraped 6 tooltip lines, description: No
+  ✅ Inserted into database
+
+[9/69] neptunal_abjuration_hands (Byakko)
+  Wiki: Neptunal_Abjuration:_Hands
+  ✓ Scraped 6 tooltip lines, description: Yes
+  ✅ Inserted into database
+
+[10/69] piece_of_oxblood (Byakko)
+  Wiki: Piece_of_Oxblood
+  ⚠️  No tooltip data or description found
+
+[11/69] seal_of_byakko (Byakko)
+  Wiki: Seal_of_Byakko
+  ✓ Scraped 2 tooltip lines, description: Yes
+  ✅ Inserted into database
+
+[12/69] spool_of_malboro_fiber (Byakko)
+  Wiki: Spool_of_Malboro_Fiber
+  ⚠️  No tooltip data or description found
+
+[13/69] zephyr (Byakko)
+  Wiki: Zephyr
+  ✓ Scraped 3 tooltip lines, description: No
+  ✅ Inserted into database
+
+[14/69] adaman_ingot (Genbu)
+  Wiki: Adaman_Ingot
+  ✓ Scraped 1 tooltip lines, description: Yes
+  ✅ Inserted into database
+
+[15/69] adamantoise_shell (Genbu)
+  Wiki: Adamantoise_Shell
+  ✓ Scraped 4 tooltip lines, description: No
+  ✅ Inserted into database
+
+[16/69] aquarian_abjuration_hands (Genbu)
+  Wiki: Aquarian_Abjuration:_Hands
+  ✓ Scraped 6 tooltip lines, description: Yes
+  ✅ Inserted into database
+
+[17/69] aquarian_abjuration_head (Genbu)
+  Wiki: Aquarian_Abjuration:_Head
+  ✓ Scraped 6 tooltip lines, description: Yes
+  ✅ Inserted into database
+
+[18/69] arctic_wind (Genbu)
+  Wiki: Arctic_Wind
+  ✓ Scraped 3 tooltip lines, description: No
+  ✅ Inserted into database
+
+[19/69] divine_log (Genbu)
+  Wiki: Divine_Log
+  ✓ Scraped 2 tooltip lines, description: Yes
+  ✅ Inserted into database
+
+[20/69] genbus_kabuto (Genbu)
+  Wiki: Genbu%27s_Kabuto
+  ✓ Scraped 4 tooltip lines, description: Yes
+  ✅ Inserted into database
+
+[21/69] genbus_shield (Genbu)
+  Wiki: Genbu%27s_Shield
+  ✓ Scraped 5 tooltip lines, description: No
+  ✅ Inserted into database
+
+[22/69] martial_abjuration_hands (Genbu)
+  Wiki: Martial_Abjuration:_Hands
+  ✓ Scraped 6 tooltip lines, description: Yes
+  ✅ Inserted into database
+
+[23/69] piece_of_oxblood (Genbu)
+  Wiki: Piece_of_Oxblood
+  ⚠️  No tooltip data or description found
+
+[24/69] seal_of_genbu (Genbu)
+  Wiki: Seal_of_Genbu
+  ✓ Scraped 2 tooltip lines, description: Yes
+  ✅ Inserted into database
+
+[25/69] venomous_claw (Genbu)
+  Wiki: Venomous_Claw
+  ✓ Scraped 2 tooltip lines, description: Yes
+  ✅ Inserted into database
+
+[26/69] vial_of_black_beetle_blood (Genbu)
+  Wiki: Vial_of_Black_Beetle_Blood
+  ⚠️  No tooltip data or description found
+
+[27/69] wyrmal_abjuration_feet (Genbu)
+  Wiki: Wyrmal_Abjuration:_Feet
+  ✓ Scraped 6 tooltip lines, description: Yes
+  ✅ Inserted into database
+
+[28/69] damascus_ingot (Kirin)
+  Wiki: Damascus_Ingot
+  ✓ Scraped 3 tooltip lines, description: No
+  ✅ Inserted into database
+
+[29/69] dryadic_abjuration_body (Kirin)
+  Wiki: Dryadic_Abjuration:_Body
+  ✓ Scraped 6 tooltip lines, description: Yes
+  ✅ Inserted into database
+
+[30/69] kirins_osode (Kirin)
+  Wiki: Kirin%27s_Osode
+  ✓ Scraped 6 tooltip lines, description: Yes
+  ✅ Inserted into database
+
+[31/69] kirins_pole (Kirin)
+  Wiki: Kirin%27s_Pole
+  ✓ Scraped 6 tooltip lines, description: No
+  ✅ Inserted into database
+
+[32/69] neptunal_abjuration_body (Kirin)
+  Wiki: Neptunal_Abjuration:_Body
+  ✓ Scraped 6 tooltip lines, description: Yes
+  ✅ Inserted into database
+
+[33/69] orichalcum_ingot (Kirin)
+  Wiki: Orichalcum_Ingot
+  ✓ Scraped 1 tooltip lines, description: Yes
+  ✅ Inserted into database
+
+[34/69] scroll_of_quake (Kirin)
+  Wiki: Scroll_of_Quake
+  ✓ Scraped 3 tooltip lines, description: No
+  ✅ Inserted into database
+
+[35/69] scroll_of_raise_iii (Kirin)
+  Wiki: Scroll_of_Raise_III
+  ⚠️  No tooltip data or description found
+
+[36/69] square_of_shining_cloth (Kirin)
+  Wiki: Square_of_Shining_Cloth
+  ⚠️  No tooltip data or description found
+
+[37/69] wyrmal_abjuration_legs (Kirin)
+  Wiki: Wyrmal_Abjuration:_Legs
+  ✓ Scraped 6 tooltip lines, description: Yes
+  ✅ Inserted into database
+
+[38/69] aquarian_abjuration_legs (Seiryu)
+  Wiki: Aquarian_Abjuration:_Legs
+  ✓ Scraped 6 tooltip lines, description: Yes
+  ✅ Inserted into database
+
+[39/69] divine_log (Seiryu)
+  Wiki: Divine_Log
+  ✓ Scraped 2 tooltip lines, description: Yes
+  ✅ Inserted into database
+
+[40/69] dragon_heart (Seiryu)
+  Wiki: Dragon_Heart
+  ✓ Scraped 1 tooltip lines, description: No
+  ✅ Inserted into database
+
+[41/69] dragon_talon (Seiryu)
+  Wiki: Dragon_Talon
+  ✓ Scraped 2 tooltip lines, description: No
+  ✅ Inserted into database
+
+[42/69] dryadic_abjuration_head (Seiryu)
+  Wiki: Dryadic_Abjuration:_Head
+  ✓ Scraped 6 tooltip lines, description: Yes
+  ✅ Inserted into database
+
+[43/69] east_wind (Seiryu)
+  Wiki: East_Wind
+  ✓ Scraped 3 tooltip lines, description: No
+  ✅ Inserted into database
+
+[44/69] martial_abjuration_head (Seiryu)
+  Wiki: Martial_Abjuration:_Head
+  ✓ Scraped 6 tooltip lines, description: Yes
+  ✅ Inserted into database
+
+[45/69] piece_of_angel_skin (Seiryu)
+  Wiki: Piece_of_Angel_Skin
+  ⚠️  No tooltip data or description found
+
+[46/69] piece_of_oxblood (Seiryu)
+  Wiki: Piece_of_Oxblood
+  ⚠️  No tooltip data or description found
+
+[47/69] seal_of_seiryu (Seiryu)
+  Wiki: Seal_of_Seiryu
+  ✓ Scraped 2 tooltip lines, description: Yes
+  ✅ Inserted into database
+
+[48/69] seiryus_kote (Seiryu)
+  Wiki: Seiryu%27s_Kote
+  ✓ Scraped 5 tooltip lines, description: Yes
+  ✅ Inserted into database
+
+[49/69] seiryus_sword (Seiryu)
+  Wiki: Seiryu%27s_Sword
+  ✓ Scraped 5 tooltip lines, description: No
+  ✅ Inserted into database
+
+[50/69] slice_of_dragon_meat (Seiryu)
+  Wiki: Slice_of_Dragon_Meat
+  ⚠️  No tooltip data or description found
+
+[51/69] spool_of_malboro_fiber (Seiryu)
+  Wiki: Spool_of_Malboro_Fiber
+  ⚠️  No tooltip data or description found
+
+[52/69] square_of_damascene_cloth (Seiryu)
+  Wiki: Square_of_Damascene_Cloth
+  ⚠️  No tooltip data or description found
+
+[53/69] vial_of_black_beetle_blood (Seiryu)
+  Wiki: Vial_of_Black_Beetle_Blood
+  ⚠️  No tooltip data or description found
+
+[54/69] vial_of_dragon_blood (Seiryu)
+  Wiki: Vial_of_Dragon_Blood
+  ⚠️  No tooltip data or description found
+
+[55/69] wyrmal_abjuration_hands (Seiryu)
+  Wiki: Wyrmal_Abjuration:_Hands
+  ✓ Scraped 6 tooltip lines, description: Yes
+  ✅ Inserted into database
+
+[56/69] antarctic_wind (Suzaku)
+  Wiki: Antarctic_Wind
+  ✓ Scraped 3 tooltip lines, description: No
+  ✅ Inserted into database
+
+[57/69] aquarian_abjuration_legs (Suzaku)
+  Wiki: Aquarian_Abjuration:_Legs
+  ✓ Scraped 6 tooltip lines, description: Yes
+  ✅ Inserted into database
+
+[58/69] dryadic_abjuration_hands (Suzaku)
+  Wiki: Dryadic_Abjuration:_Hands
+  ✓ Scraped 6 tooltip lines, description: Yes
+  ✅ Inserted into database
+
+[59/69] earthen_abjuration_head (Suzaku)
+  Wiki: Earthen_Abjuration:_Head
+  ✓ Scraped 6 tooltip lines, description: Yes
+  ✅ Inserted into database
+
+[60/69] lock_of_sirens_hair (Suzaku)
+  Wiki: Lock_of_Sirens_Hair
+  ⚠️  No tooltip data or description found
+
+[61/69] neptunal_abjuration_feet (Suzaku)
+  Wiki: Neptunal_Abjuration:_Feet
+  ✓ Scraped 6 tooltip lines, description: Yes
+  ✅ Inserted into database
+
+[62/69] orichalcum_ingot (Suzaku)
+  Wiki: Orichalcum_Ingot
+  ✓ Scraped 1 tooltip lines, description: Yes
+  ✅ Inserted into database
+
+[63/69] seal_of_suzaku (Suzaku)
+  Wiki: Seal_of_Suzaku
+  ✓ Scraped 2 tooltip lines, description: Yes
+  ✅ Inserted into database
+
+[64/69] square_of_damascene_cloth (Suzaku)
+  Wiki: Square_of_Damascene_Cloth
+  ⚠️  No tooltip data or description found
+
+[65/69] square_of_shining_cloth (Suzaku)
+  Wiki: Square_of_Shining_Cloth
+  ⚠️  No tooltip data or description found
+
+[66/69] suzakus_scythe (Suzaku)
+  Wiki: Suzaku%27s_Scythe
+  ✓ Scraped 5 tooltip lines, description: No
+  ✅ Inserted into database
+
+[67/69] suzakus_sune-ate (Suzaku)
+  Wiki: Suzaku%27s_Sune-ate
+  ⚠️  No tooltip data or description found
+
+[68/69] venomous_claw (Suzaku)
+  Wiki: Venomous_Claw
+  ✓ Scraped 2 tooltip lines, description: Yes
+  ✅ Inserted into database
+
+[69/69] vial_of_black_beetle_blood (Suzaku)
+  Wiki: Vial_of_Black_Beetle_Blood
+  ⚠️  No tooltip data or description found
+
+=== SUMMARY ===
+✅ Success: 51
+⚠️  Skipped: 18
+❌ Failed: 0
+Total: 69

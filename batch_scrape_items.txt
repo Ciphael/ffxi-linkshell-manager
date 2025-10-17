@@ -1,0 +1,15 @@
+gem_of_the_east
+gem_of_the_south
+gem_of_the_west
+gem_of_the_north
+libation_abjuration
+oblation_abjuration
+zenith_crown
+zenith_crown_+1
+zenith_mitts
+zenith_mitts_+1
+scarecrow_scythe
+koenig_handschuhs
+kaiser_handschuhs
+crimson_cuisses
+crimson_finger_gauntlets
