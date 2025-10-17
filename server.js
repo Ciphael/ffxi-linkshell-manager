@@ -493,6 +493,7 @@ app.get('/api/all-items', async (req, res) => {
             LEFT JOIN item_usable iu ON ib.itemid = iu.itemid AND iu.activation = 3
             LEFT JOIN item_classifications ic ON ib.itemid = ic.item_id
             LEFT JOIN item_wiki_tooltips iwt ON ib.itemid = iwt.item_id
+            WHERE ib.ignore = FALSE
             ORDER BY ib.itemid
         `;
 
@@ -590,7 +591,7 @@ app.get('/api/market-rates', async (req, res) => {
                 LEFT JOIN item_usable iu ON md.itemId = iu.itemid AND iu.activation = 3
                 LEFT JOIN item_classifications ic ON md.itemId = ic.item_id
                 LEFT JOIN mobs m ON md.dropId = m.dropid
-                WHERE md.dropType IN (0, 1, 4) AND m.mob_name IS NOT NULL
+                WHERE md.dropType IN (0, 1, 4) AND m.mob_name IS NOT NULL AND ib.ignore = FALSE
                 ORDER BY md.itemId, m.mob_name, ib.name
             ) base_data
         `;
