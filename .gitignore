@@ -1,3 +1,16 @@
 node_modules/
 .env
 .DS_Store
+
+# Railway
+.railway/
+
+# Session continuity docs (contain credentials)
+N8N_SESSION_CONTINUITY.md
+RAILWAY_CLI_CONNECTION.md
+DISCORD_BOT_SETUP_SESSION.md
+RAILWAY_CREDENTIALS.md
+
+# Database credentials
+railway-vars.json
+database-credentials.txt
