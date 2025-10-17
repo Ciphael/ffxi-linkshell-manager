@@ -3516,7 +3516,7 @@ async function handleEventCreateOrUpdate(event_id, eventData) {
                 channel_id,
                 message_id,
                 true,  // is_from_discord
-                leader?.discord_id || 'discord_bot'
+                null  // created_by is NULL for Discord events (no user account)
             ]);
 
             dbEventId = result.rows[0].id;
