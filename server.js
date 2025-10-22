@@ -1353,19 +1353,20 @@ app.post('/api/events', async (req, res) => {
 app.get('/api/events/upcoming', async (req, res) => {
     try {
         const result = await pool.query(
-            `SELECT e.*, 
+            `SELECT e.*,
                     u.character_name as raid_leader_name,
-                    COUNT(DISTINCT ep.user_id) as registered_count,
+                    (COUNT(DISTINCT ep.user_id) + COUNT(DISTINCT es.discord_id)) as registered_count,
                     array_agg(DISTINCT et.mob_name) FILTER (WHERE et.mob_name IS NOT NULL) as targets
              FROM events e
              LEFT JOIN users u ON e.raid_leader = u.id
              LEFT JOIN event_participants ep ON e.id = ep.event_id
+             LEFT JOIN event_signups es ON e.id = es.event_id
              LEFT JOIN event_targets et ON e.id = et.event_id
              WHERE e.event_date >= NOW() AND e.status = 'scheduled'
              GROUP BY e.id, u.character_name
              ORDER BY e.event_date`
         );
-        
+
         res.json(result.rows || []);
     } catch (error) {
         console.error('Error fetching events:', error);
@@ -1420,21 +1421,62 @@ app.post('/api/events/:eventId/register', async (req, res) => {
     }
 });
 
-// Get event participants
+// Get event participants (combined website + Discord signups)
 app.get('/api/events/:eventId/participants', async (req, res) => {
     try {
         const { eventId } = req.params;
 
-        const result = await pool.query(
-            `SELECT ep.*, u.character_name, u.role as user_role
+        // Calculate current month_year (format: YYYYMM)
+        const now = new Date();
+        const currentMonthYear = parseInt(`${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}`);
+
+        // Get website participants
+        const websiteParticipants = await pool.query(
+            `SELECT
+                ep.id,
+                ep.user_id,
+                u.character_name as name,
+                u.role,
+                ep.registered_at,
+                'website' as source,
+                NULL as discord_id,
+                NULL as discord_username,
+                'accepted' as status,
+                mjr.job as main_job
              FROM event_participants ep
              JOIN users u ON ep.user_id = u.id
-             WHERE ep.event_id = $1
-             ORDER BY ep.registered_at`,
-            [eventId]
+             LEFT JOIN monthly_job_registrations mjr ON u.id = mjr.user_id AND mjr.month_year = $2
+             WHERE ep.event_id = $1`,
+            [eventId, currentMonthYear]
         );
 
-        res.json(result.rows);
+        // Get Discord signups
+        const discordSignups = await pool.query(
+            `SELECT
+                es.id,
+                es.member_id as user_id,
+                COALESCE(u.character_name, es.discord_username) as name,
+                es.role,
+                es.signed_up_at as registered_at,
+                'discord' as source,
+                es.discord_id,
+                es.discord_username,
+                es.status,
+                mjr.job as main_job
+             FROM event_signups es
+             LEFT JOIN users u ON es.member_id = u.id
+             LEFT JOIN monthly_job_registrations mjr ON u.id = mjr.user_id AND mjr.month_year = $2
+             WHERE es.event_id = $1`,
+            [eventId, currentMonthYear]
+        );
+
+        // Combine and sort by registration time
+        const allParticipants = [
+            ...websiteParticipants.rows,
+            ...discordSignups.rows
+        ].sort((a, b) => new Date(a.registered_at) - new Date(b.registered_at));
+
+        res.json(allParticipants);
     } catch (error) {
         console.error('Error fetching participants:', error);
         res.status(500).json({ error: 'Failed to fetch participants' });
