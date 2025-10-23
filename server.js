@@ -1,6 +1,9 @@
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
+const session = require('express-session');
+const cookieParser = require('cookie-parser');
+const axios = require('axios');
 const { Pool } = require('pg');
 require('dotenv').config();
 
@@ -28,6 +31,20 @@ app.use(helmet({
     crossOriginResourcePolicy: { policy: "cross-origin" }
 }));
 app.use(express.json());
+app.use(cookieParser());
+
+// Session configuration
+app.use(session({
+    secret: process.env.SESSION_SECRET || 'ffxi-linkshell-secret-key-change-in-production',
+    resave: false,
+    saveUninitialized: false,
+    cookie: {
+        secure: process.env.NODE_ENV === 'production', // HTTPS only in production
+        httpOnly: true,
+        maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax' // 'none' for cross-origin in production
+    }
+}));
 
 // Database connection
 const pool = new Pool({
@@ -48,6 +65,216 @@ pool.connect((err, client, release) => {
 });
 
 // ============ API ROUTES ============
+
+// ============ DISCORD OAUTH ROUTES ============
+
+// Discord OAuth Configuration
+const DISCORD_CLIENT_ID = process.env.DISCORD_CLIENT_ID;
+const DISCORD_CLIENT_SECRET = process.env.DISCORD_CLIENT_SECRET;
+const DISCORD_GUILD_ID = process.env.DISCORD_GUILD_ID;
+const DISCORD_REDIRECT_URI = process.env.DISCORD_REDIRECT_URI || 'https://ffxi-linkshell-manager-production.up.railway.app/auth/discord/callback';
+const FRONTEND_URL = process.env.FRONTEND_URL || 'https://ffxi-linkshell-manager-frontend.vercel.app';
+
+// Step 1: Initiate Discord OAuth
+app.get('/auth/discord', (req, res) => {
+    const params = new URLSearchParams({
+        client_id: DISCORD_CLIENT_ID,
+        redirect_uri: DISCORD_REDIRECT_URI,
+        response_type: 'code',
+        scope: 'identify guilds' // Request user profile and guild membership
+    });
+
+    res.redirect(`https://discord.com/api/oauth2/authorize?${params}`);
+});
+
+// Step 2: Handle OAuth Callback
+app.get('/auth/discord/callback', async (req, res) => {
+    const { code } = req.query;
+
+    if (!code) {
+        return res.redirect(`${FRONTEND_URL}?error=no_code`);
+    }
+
+    try {
+        // Exchange code for access token
+        const tokenResponse = await axios.post('https://discord.com/api/oauth2/token',
+            new URLSearchParams({
+                client_id: DISCORD_CLIENT_ID,
+                client_secret: DISCORD_CLIENT_SECRET,
+                grant_type: 'authorization_code',
+                code: code,
+                redirect_uri: DISCORD_REDIRECT_URI
+            }),
+            {
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
+            }
+        );
+
+        const { access_token } = tokenResponse.data;
+
+        // Fetch user profile
+        const userResponse = await axios.get('https://discord.com/api/users/@me', {
+            headers: { Authorization: `Bearer ${access_token}` }
+        });
+
+        const discordUser = userResponse.data;
+
+        // Fetch user's guilds (servers)
+        const guildsResponse = await axios.get('https://discord.com/api/users/@me/guilds', {
+            headers: { Authorization: `Bearer ${access_token}` }
+        });
+
+        const guilds = guildsResponse.data;
+
+        // Check if user is in the linkshell Discord server
+        const isInGuild = guilds.some(guild => guild.id === DISCORD_GUILD_ID);
+
+        if (!isInGuild) {
+            return res.redirect(`${FRONTEND_URL}?error=not_in_server`);
+        }
+
+        // Check if user exists in database
+        const existingUser = await pool.query(
+            'SELECT * FROM users WHERE discord_id = $1',
+            [discordUser.id]
+        );
+
+        if (existingUser.rows.length > 0) {
+            // User exists - update username and log them in
+            const user = existingUser.rows[0];
+
+            await pool.query(
+                'UPDATE users SET discord_username = $1 WHERE discord_id = $2',
+                [discordUser.username, discordUser.id]
+            );
+
+            // Store user in session
+            req.session.userId = user.id;
+            req.session.discordId = discordUser.id;
+            req.session.isActive = user.is_active;
+
+            // Redirect to frontend
+            if (user.is_active) {
+                return res.redirect(`${FRONTEND_URL}?login=success`);
+            } else {
+                return res.redirect(`${FRONTEND_URL}?status=pending_approval`);
+            }
+        } else {
+            // New user - needs to link character
+            // Store Discord info in session temporarily
+            req.session.pendingDiscordId = discordUser.id;
+            req.session.pendingDiscordUsername = discordUser.username;
+
+            return res.redirect(`${FRONTEND_URL}?status=new_user&discord_username=${encodeURIComponent(discordUser.username)}`);
+        }
+
+    } catch (error) {
+        console.error('Discord OAuth error:', error.response?.data || error.message);
+        res.redirect(`${FRONTEND_URL}?error=oauth_failed`);
+    }
+});
+
+// Step 3: Link Discord account to FFXI character
+app.post('/auth/link-character', async (req, res) => {
+    try {
+        const { character_name } = req.body;
+        const { pendingDiscordId, pendingDiscordUsername } = req.session;
+
+        if (!pendingDiscordId) {
+            return res.status(400).json({ error: 'No pending Discord login found' });
+        }
+
+        if (!character_name || character_name.trim().length === 0) {
+            return res.status(400).json({ error: 'Character name is required' });
+        }
+
+        // Check if character name is already taken
+        const existingCharacter = await pool.query(
+            'SELECT * FROM users WHERE character_name = $1',
+            [character_name.trim()]
+        );
+
+        if (existingCharacter.rows.length > 0) {
+            return res.status(400).json({ error: 'Character name already in use' });
+        }
+
+        // Create new user account (unconfirmed)
+        const result = await pool.query(
+            `INSERT INTO users (discord_id, discord_username, character_name, role, is_active, created_at)
+             VALUES ($1, $2, $3, 'user', false, NOW())
+             RETURNING *`,
+            [pendingDiscordId, pendingDiscordUsername, character_name.trim()]
+        );
+
+        const newUser = result.rows[0];
+
+        // Update all past event signups with this user's member_id
+        await pool.query(
+            'UPDATE event_signups SET member_id = $1 WHERE discord_id = $2',
+            [newUser.id, pendingDiscordId]
+        );
+
+        // Store user in session
+        req.session.userId = newUser.id;
+        req.session.discordId = pendingDiscordId;
+        req.session.isActive = false;
+
+        // Clear pending data
+        delete req.session.pendingDiscordId;
+        delete req.session.pendingDiscordUsername;
+
+        res.json({
+            success: true,
+            user: {
+                id: newUser.id,
+                character_name: newUser.character_name,
+                discord_username: newUser.discord_username,
+                is_active: newUser.is_active
+            }
+        });
+
+    } catch (error) {
+        console.error('Character linking error:', error);
+        res.status(500).json({ error: 'Failed to link character' });
+    }
+});
+
+// Get current logged-in user
+app.get('/auth/user', async (req, res) => {
+    try {
+        if (!req.session.userId) {
+            return res.json({ user: null });
+        }
+
+        const result = await pool.query(
+            'SELECT id, character_name, discord_username, role, is_active FROM users WHERE id = $1',
+            [req.session.userId]
+        );
+
+        if (result.rows.length === 0) {
+            req.session.destroy();
+            return res.json({ user: null });
+        }
+
+        res.json({ user: result.rows[0] });
+
+    } catch (error) {
+        console.error('Get user error:', error);
+        res.status(500).json({ error: 'Failed to get user' });
+    }
+});
+
+// Logout
+app.post('/auth/logout', (req, res) => {
+    req.session.destroy((err) => {
+        if (err) {
+            return res.status(500).json({ error: 'Logout failed' });
+        }
+        res.json({ success: true });
+    });
+});
+
+// ============ END DISCORD OAUTH ROUTES ============
 
 // Root route
 app.get('/', (req, res) => {
