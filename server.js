@@ -3749,11 +3749,17 @@ async function handleEventCreateOrUpdate(event_id, eventData) {
                 RETURNING id
             `, [title, description, start_time, durationMinutes, channel_id, message_id, event_id]);
 
+            if (result.rows.length === 0) {
+                throw new Error(`Failed to update event with raid_helper_id ${event_id}`);
+            }
+
             dbEventId = result.rows[0].id;
             console.log(`[Raid-Helper] Updated event ${dbEventId} (Discord ID: ${event_id})`);
 
         } else {
             // Create new event
+            // Note: created_by and raid_leader are intentionally NULL for Discord events
+            // since they're not created by a logged-in user
             const result = await pool.query(`
                 INSERT INTO events (
                     event_name,
@@ -3767,10 +3773,8 @@ async function handleEventCreateOrUpdate(event_id, eventData) {
                     raid_helper_id,
                     discord_channel_id,
                     discord_message_id,
-                    is_from_discord,
-                    created_by,
-                    raid_leader
-                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $13)
+                    is_from_discord
+                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
                 RETURNING id
             `, [
                 title,
@@ -3784,12 +3788,20 @@ async function handleEventCreateOrUpdate(event_id, eventData) {
                 event_id,
                 channel_id,
                 message_id,
-                true,  // is_from_discord
-                null  // created_by is NULL for Discord events (no user account)
+                true  // is_from_discord
             ]);
+
+            if (result.rows.length === 0) {
+                throw new Error(`Failed to create event with raid_helper_id ${event_id}`);
+            }
 
             dbEventId = result.rows[0].id;
             console.log(`[Raid-Helper] Created event ${dbEventId} (Discord ID: ${event_id})`);
+        }
+
+        // Validate dbEventId before proceeding
+        if (!dbEventId) {
+            throw new Error(`No event ID returned for raid_helper_id ${event_id}`);
         }
 
         // Sync signups
