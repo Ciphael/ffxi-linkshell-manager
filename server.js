@@ -3799,14 +3799,50 @@ async function handleEventCreateOrUpdate(event_id, eventData) {
 
             // Insert new signups
             for (const signup of signups) {
-                // Try to find matching user by discord_id
-                // Only link to confirmed/active users
+                let memberId = null;
+
+                // Try to find existing user by discord_id
                 const memberResult = await pool.query(
-                    'SELECT id FROM users WHERE discord_id = $1 AND is_active = true',
+                    'SELECT id FROM users WHERE discord_id = $1',
                     [signup.discord_id]
                 );
 
-                const memberId = memberResult.rows.length > 0 ? memberResult.rows[0].id : null;
+                if (memberResult.rows.length > 0) {
+                    // User exists - use their ID
+                    memberId = memberResult.rows[0].id;
+                } else {
+                    // User doesn't exist - AUTO-CREATE them
+                    // Discord users are auto-approved (is_active = true) since Discord membership is verified
+                    try {
+                        const newUserResult = await pool.query(`
+                            INSERT INTO users (
+                                discord_id,
+                                discord_username,
+                                character_name,
+                                is_active
+                            ) VALUES ($1, $2, $3, $4)
+                            RETURNING id
+                        `, [
+                            signup.discord_id,
+                            signup.username,
+                            signup.username, // Use Discord username as character name initially
+                            true // Auto-approve Discord users
+                        ]);
+
+                        memberId = newUserResult.rows[0].id;
+                        console.log(`[Raid-Helper] Auto-created user ${memberId} for Discord user ${signup.username} (${signup.discord_id})`);
+                    } catch (createError) {
+                        // If user creation fails (e.g., duplicate), try to get the existing user again
+                        console.warn(`[Raid-Helper] Failed to create user for ${signup.discord_id}, attempting to fetch existing:`, createError.message);
+                        const retryResult = await pool.query(
+                            'SELECT id FROM users WHERE discord_id = $1',
+                            [signup.discord_id]
+                        );
+                        if (retryResult.rows.length > 0) {
+                            memberId = retryResult.rows[0].id;
+                        }
+                    }
+                }
 
                 await pool.query(`
                     INSERT INTO event_signups (
