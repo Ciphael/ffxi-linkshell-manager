@@ -3760,43 +3760,53 @@ async function handleEventCreateOrUpdate(event_id, eventData) {
             // Create new event
             // Note: created_by and raid_leader are intentionally NULL for Discord events
             // since they're not created by a logged-in user
-            const result = await pool.query(`
-                INSERT INTO events (
-                    event_name,
-                    event_type,
-                    event_date,
-                    duration_minutes,
+            console.log(`[Raid-Helper] Creating new event with raid_helper_id: ${event_id}`);
+            console.log(`[Raid-Helper] Event data: title="${title}", type="Sky", date="${start_time}", duration=${durationMinutes}`);
+
+            try {
+                const result = await pool.query(`
+                    INSERT INTO events (
+                        event_name,
+                        event_type,
+                        event_date,
+                        duration_minutes,
+                        description,
+                        meeting_location,
+                        max_participants,
+                        base_points,
+                        raid_helper_id,
+                        discord_channel_id,
+                        discord_message_id,
+                        is_from_discord
+                    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+                    RETURNING id
+                `, [
+                    title,
+                    'Sky',  // Default event type
+                    start_time,
+                    durationMinutes,
                     description,
-                    meeting_location,
-                    max_participants,
-                    base_points,
-                    raid_helper_id,
-                    discord_channel_id,
-                    discord_message_id,
-                    is_from_discord
-                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
-                RETURNING id
-            `, [
-                title,
-                'Sky',  // Default event type
-                start_time,
-                durationMinutes,
-                description,
-                'Discord',  // Meeting location
-                18,  // Default max participants
-                10,  // Default base points
-                event_id,
-                channel_id,
-                message_id,
-                true  // is_from_discord
-            ]);
+                    'Discord',  // Meeting location
+                    18,  // Default max participants
+                    10,  // Default base points
+                    event_id,
+                    channel_id,
+                    message_id,
+                    true  // is_from_discord
+                ]);
 
-            if (result.rows.length === 0) {
-                throw new Error(`Failed to create event with raid_helper_id ${event_id}`);
+                if (result.rows.length === 0) {
+                    throw new Error(`Failed to create event with raid_helper_id ${event_id}`);
+                }
+
+                dbEventId = result.rows[0].id;
+                console.log(`[Raid-Helper] Successfully created event ${dbEventId} (Discord ID: ${event_id})`);
+            } catch (insertError) {
+                console.error(`[Raid-Helper] INSERT ERROR:`, insertError);
+                console.error(`[Raid-Helper] INSERT ERROR Detail:`, insertError.detail);
+                console.error(`[Raid-Helper] INSERT ERROR Code:`, insertError.code);
+                throw insertError;
             }
-
-            dbEventId = result.rows[0].id;
-            console.log(`[Raid-Helper] Created event ${dbEventId} (Discord ID: ${event_id})`);
         }
 
         // Validate dbEventId before proceeding
