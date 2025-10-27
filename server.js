@@ -39,12 +39,24 @@ app.use(session({
     resave: false,
     saveUninitialized: false,
     cookie: {
-        secure: process.env.NODE_ENV === 'production', // HTTPS only in production
+        secure: true, // Always require HTTPS (Railway uses HTTPS)
         httpOnly: true,
         maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax' // 'none' for cross-origin in production
+        sameSite: 'none', // Required for cross-origin (Vercel -> Railway)
+        domain: undefined // Don't set domain for cross-origin
     }
 }));
+
+// Session debugging middleware
+app.use((req, res, next) => {
+    console.log('[Session Debug]', {
+        path: req.path,
+        sessionID: req.sessionID,
+        userId: req.session?.userId,
+        hasCookie: !!req.headers.cookie
+    });
+    next();
+});
 
 // Database connection
 const pool = new Pool({
@@ -267,7 +279,10 @@ app.post('/api/auth/link-character', async (req, res) => {
 // Get current logged-in user (session check)
 app.get('/api/auth/session', async (req, res) => {
     try {
+        console.log('[Session Check] Checking session for userId:', req.session.userId);
+
         if (!req.session.userId) {
+            console.log('[Session Check] No userId in session, returning null');
             return res.json({ user: null });
         }
 
@@ -277,14 +292,16 @@ app.get('/api/auth/session', async (req, res) => {
         );
 
         if (result.rows.length === 0) {
+            console.log('[Session Check] User not found in database, destroying session');
             req.session.destroy();
             return res.json({ user: null });
         }
 
+        console.log('[Session Check] User found:', result.rows[0].character_name);
         res.json({ user: result.rows[0] });
 
     } catch (error) {
-        console.error('Get user error:', error);
+        console.error('[Session Check] Error:', error);
         res.status(500).json({ error: 'Failed to get user' });
     }
 });
