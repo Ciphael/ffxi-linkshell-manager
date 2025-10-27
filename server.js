@@ -1,9 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
-const session = require('express-session');
-const pgSession = require('connect-pg-simple')(session);
-const cookieParser = require('cookie-parser');
+const jwt = require('jsonwebtoken');
 const axios = require('axios');
 const { Pool } = require('pg');
 require('dotenv').config();
@@ -14,7 +12,7 @@ const PORT = process.env.PORT || 3000;
 // Trust proxy - Railway is behind a proxy
 app.set('trust proxy', 1);
 
-// CORS Configuration - must explicitly allow credentials for cross-origin cookies
+// CORS Configuration - simplified for JWT (no credentials needed)
 app.use(cors({
     origin: function (origin, callback) {
         const allowedOrigins = [
@@ -33,40 +31,20 @@ app.use(cors({
             callback(new Error('Not allowed by CORS'));
         }
     },
-    credentials: true, // CRITICAL: Allow cookies to be sent cross-origin
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'Cookie'],
-    exposedHeaders: ['Set-Cookie']
+    allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
 // Handle preflight requests
 app.options('*', cors());
-
-// Explicit credentials middleware for all responses
-app.use((req, res, next) => {
-    const origin = req.headers.origin;
-    const allowedOrigins = [
-        'https://ffxi-linkshell-manager-frontend.vercel.app',
-        'http://localhost:3000',
-        'http://localhost:5173',
-        'http://127.0.0.1:5500',
-    ];
-
-    if (allowedOrigins.includes(origin)) {
-        res.header('Access-Control-Allow-Credentials', 'true');
-        res.header('Access-Control-Allow-Origin', origin);
-    }
-    next();
-});
 
 // Middleware
 app.use(helmet({
     crossOriginResourcePolicy: { policy: "cross-origin" }
 }));
 app.use(express.json());
-app.use(cookieParser());
 
-// Database connection (must be before session config)
+// Database connection
 const pool = new Pool({
     connectionString: process.env.DATABASE_URL,
     ssl: {
@@ -74,37 +52,67 @@ const pool = new Pool({
     }
 });
 
-// Session configuration with PostgreSQL store
-app.use(session({
-    name: 'ffxi.sid', // Fixed cookie name
-    store: new pgSession({
-        pool: pool, // Use existing connection pool
-        tableName: 'user_sessions', // Table for storing sessions
-        createTableIfMissing: true // Auto-create sessions table
-    }),
-    secret: process.env.SESSION_SECRET || 'ffxi-linkshell-secret-key-change-in-production',
-    resave: false,
-    saveUninitialized: false,
-    cookie: {
-        secure: true, // Always require HTTPS (Railway uses HTTPS)
-        httpOnly: true,
-        maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-        sameSite: 'none', // Required for cross-origin (Vercel -> Railway)
-        path: '/', // Explicitly set path
-        domain: undefined // Don't set domain for cross-origin
-    }
-}));
+// ============ JWT CONFIGURATION ============
+const JWT_SECRET = process.env.JWT_SECRET || process.env.SESSION_SECRET || 'ffxi-linkshell-jwt-secret-change-in-production';
+const JWT_EXPIRY = '7d'; // 7 days
 
-// Session debugging middleware
-app.use((req, res, next) => {
-    console.log('[Session Debug]', {
-        path: req.path,
-        sessionID: req.sessionID,
-        userId: req.session?.userId,
-        hasCookie: !!req.headers.cookie
-    });
+// JWT Helper Functions
+function generateToken(user) {
+    return jwt.sign(
+        {
+            id: user.id,
+            discord_id: user.discord_id,
+            character_name: user.character_name,
+            discord_username: user.discord_username,
+            role: user.role,
+            is_active: user.is_active
+        },
+        JWT_SECRET,
+        { expiresIn: JWT_EXPIRY }
+    );
+}
+
+function verifyToken(token) {
+    try {
+        return jwt.verify(token, JWT_SECRET);
+    } catch (error) {
+        return null;
+    }
+}
+
+// JWT Authentication Middleware
+function authenticateJWT(req, res, next) {
+    const authHeader = req.headers.authorization;
+
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return res.status(401).json({ error: 'Authentication required' });
+    }
+
+    const token = authHeader.substring(7); // Remove 'Bearer ' prefix
+    const decoded = verifyToken(token);
+
+    if (!decoded) {
+        return res.status(401).json({ error: 'Invalid or expired token' });
+    }
+
+    req.user = decoded;
     next();
-});
+}
+
+// Optional JWT Authentication (doesn't fail if no token)
+function optionalAuthenticateJWT(req, res, next) {
+    const authHeader = req.headers.authorization;
+
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+        const token = authHeader.substring(7);
+        const decoded = verifyToken(token);
+        if (decoded) {
+            req.user = decoded;
+        }
+    }
+
+    next();
+}
 
 // Test database connection
 pool.connect((err, client, release) => {
@@ -200,40 +208,29 @@ app.get('/api/auth/discord/callback', async (req, res) => {
                 [discordUser.username, discordUser.id]
             );
 
-            // Store user in session
-            req.session.userId = user.id;
-            req.session.discordId = discordUser.id;
-            req.session.isActive = user.is_active;
+            // Generate JWT token
+            const token = generateToken(user);
 
-            // Save session before redirecting (critical for cross-origin cookies)
-            req.session.save((err) => {
-                if (err) {
-                    console.error('Session save error:', err);
-                    return res.redirect(`${FRONTEND_URL}?error=session_failed`);
-                }
-
-                // Redirect to frontend after session is saved
-                if (user.is_active) {
-                    return res.redirect(`${FRONTEND_URL}?login=success`);
-                } else {
-                    return res.redirect(`${FRONTEND_URL}?status=pending_approval`);
-                }
-            });
+            // Redirect to frontend with token
+            if (user.is_active) {
+                return res.redirect(`${FRONTEND_URL}?login=success&token=${token}`);
+            } else {
+                return res.redirect(`${FRONTEND_URL}?status=pending_approval&token=${token}`);
+            }
         } else {
             // New user - needs to link character
-            // Store Discord info in session temporarily
-            req.session.pendingDiscordId = discordUser.id;
-            req.session.pendingDiscordUsername = discordUser.username;
+            // Create a temporary token with pending Discord info
+            const tempToken = jwt.sign(
+                {
+                    pendingDiscordId: discordUser.id,
+                    pendingDiscordUsername: discordUser.username,
+                    isNewUser: true
+                },
+                JWT_SECRET,
+                { expiresIn: '15m' } // Short expiry for pending users
+            );
 
-            // Save session before redirecting
-            req.session.save((err) => {
-                if (err) {
-                    console.error('Session save error:', err);
-                    return res.redirect(`${FRONTEND_URL}?error=session_failed`);
-                }
-
-                return res.redirect(`${FRONTEND_URL}?status=new_user&discord_username=${encodeURIComponent(discordUser.username)}`);
-            });
+            return res.redirect(`${FRONTEND_URL}?status=new_user&discord_username=${encodeURIComponent(discordUser.username)}&temp_token=${tempToken}`);
         }
 
     } catch (error) {
@@ -245,12 +242,19 @@ app.get('/api/auth/discord/callback', async (req, res) => {
 // Step 3: Link Discord account to FFXI character
 app.post('/api/auth/link-character', async (req, res) => {
     try {
-        const { character_name } = req.body;
-        const { pendingDiscordId, pendingDiscordUsername } = req.session;
+        const { character_name, temp_token } = req.body;
 
-        if (!pendingDiscordId) {
+        if (!temp_token) {
             return res.status(400).json({ error: 'No pending Discord login found' });
         }
+
+        // Verify temporary token
+        const decoded = verifyToken(temp_token);
+        if (!decoded || !decoded.isNewUser) {
+            return res.status(400).json({ error: 'Invalid or expired temporary token' });
+        }
+
+        const { pendingDiscordId, pendingDiscordUsername } = decoded;
 
         if (!character_name || character_name.trim().length === 0) {
             return res.status(400).json({ error: 'Character name is required' });
@@ -266,7 +270,7 @@ app.post('/api/auth/link-character', async (req, res) => {
             return res.status(400).json({ error: 'Character name already in use' });
         }
 
-        // Create new user account (unconfirmed)
+        // Create new user account (inactive - needs admin approval)
         const result = await pool.query(
             `INSERT INTO users (discord_id, discord_username, character_name, role, is_active, created_at)
              VALUES ($1, $2, $3, 'user', false, NOW())
@@ -282,32 +286,19 @@ app.post('/api/auth/link-character', async (req, res) => {
             [newUser.id, pendingDiscordId]
         );
 
-        // Store user in session
-        req.session.userId = newUser.id;
-        req.session.discordId = pendingDiscordId;
-        req.session.isActive = false;
+        // Generate JWT token for the new user
+        const token = generateToken(newUser);
 
-        // Clear pending data
-        delete req.session.pendingDiscordId;
-        delete req.session.pendingDiscordUsername;
-
-        // Save session before responding
-        req.session.save((err) => {
-            if (err) {
-                console.error('Session save error during character link:', err);
-                return res.status(500).json({ error: 'Failed to save session' });
+        res.json({
+            success: true,
+            token: token,
+            user: {
+                id: newUser.id,
+                character_name: newUser.character_name,
+                discord_username: newUser.discord_username,
+                is_active: newUser.is_active,
+                role: newUser.role
             }
-
-            res.json({
-                success: true,
-                user: {
-                    id: newUser.id,
-                    character_name: newUser.character_name,
-                    discord_username: newUser.discord_username,
-                    is_active: newUser.is_active,
-                    role: newUser.role
-                }
-            });
         });
 
     } catch (error) {
@@ -316,62 +307,68 @@ app.post('/api/auth/link-character', async (req, res) => {
     }
 });
 
-// Get current logged-in user (session check)
+// Get current logged-in user (JWT verification)
 app.get('/api/auth/session', async (req, res) => {
     try {
-        console.log('[Session Check] Full debug:', {
-            sessionID: req.sessionID,
-            userId: req.session.userId,
-            cookieHeader: req.headers.cookie,
-            hasCookie: !!req.headers.cookie,
-            origin: req.headers.origin
-        });
+        const authHeader = req.headers.authorization;
 
-        if (!req.session.userId) {
-            console.log('[Session Check] No userId in session, returning null');
+        console.log('[Auth Check] Authorization header:', authHeader ? 'Present' : 'Missing');
+
+        if (!authHeader || !authHeader.startsWith('Bearer ')) {
+            console.log('[Auth Check] No valid authorization header, returning null');
             return res.json({ user: null });
         }
 
+        const token = authHeader.substring(7);
+        const decoded = verifyToken(token);
+
+        if (!decoded) {
+            console.log('[Auth Check] Invalid or expired token, returning null');
+            return res.json({ user: null });
+        }
+
+        // Verify user still exists in database and fetch latest data
         const result = await pool.query(
             'SELECT id, character_name, discord_username, role, is_active FROM users WHERE id = $1',
-            [req.session.userId]
+            [decoded.id]
         );
 
         if (result.rows.length === 0) {
-            console.log('[Session Check] User not found in database, destroying session');
-            req.session.destroy();
+            console.log('[Auth Check] User not found in database');
             return res.json({ user: null });
         }
 
-        console.log('[Session Check] User found:', result.rows[0].character_name);
-        res.json({ user: result.rows[0] });
+        const user = result.rows[0];
+        console.log('[Auth Check] User authenticated:', user.character_name);
+        res.json({ user: user });
 
     } catch (error) {
-        console.error('[Session Check] Error:', error);
-        res.status(500).json({ error: 'Failed to get user' });
+        console.error('[Auth Check] Error:', error);
+        res.status(500).json({ error: 'Failed to verify authentication' });
     }
 });
 
-// Debug endpoint for troubleshooting cookie issues
+// Debug endpoint for troubleshooting JWT authentication
 app.get('/api/auth/debug', (req, res) => {
+    const authHeader = req.headers.authorization;
+    const token = authHeader ? authHeader.substring(7) : null;
+    const decoded = token ? verifyToken(token) : null;
+
     res.json({
-        sessionID: req.sessionID,
-        sessionData: req.session,
-        cookies: req.headers.cookie,
-        hasCookie: !!req.headers.cookie,
+        hasAuthHeader: !!authHeader,
+        tokenPresent: !!token,
+        tokenValid: !!decoded,
+        decodedData: decoded || null,
         origin: req.headers.origin,
         userAgent: req.headers['user-agent']
     });
 });
 
-// Logout
+// Logout (JWT - just returns success, client removes token)
 app.post('/api/auth/logout', (req, res) => {
-    req.session.destroy((err) => {
-        if (err) {
-            return res.status(500).json({ error: 'Logout failed' });
-        }
-        res.json({ success: true });
-    });
+    // With JWT, logout is handled client-side by removing the token
+    // Server doesn't need to do anything since JWTs are stateless
+    res.json({ success: true, message: 'Logout successful' });
 });
 
 // ============ END DISCORD OAUTH ROUTES ============
