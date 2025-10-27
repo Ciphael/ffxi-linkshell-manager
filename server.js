@@ -3931,10 +3931,18 @@ async function handleEventCreateOrUpdate(event_id, eventData) {
                     memberId = memberResult.rows[0].id;
                     console.log(`[Raid-Helper] Found existing user ${memberId} for discord_id ${signup.discord_id}`);
                 } else {
-                    // User doesn't exist yet - they need to link their account via OAuth or admin
-                    // Create signup without member_id for now
-                    memberId = null;
-                    console.log(`[Raid-Helper] No user found for discord_id ${signup.discord_id} (${signup.username}), creating signup without member_id (will link later)`);
+                    // User doesn't exist yet - auto-create inactive account
+                    console.log(`[Raid-Helper] No user found for discord_id ${signup.discord_id} (${signup.username}), creating new user account`);
+
+                    const newUserResult = await pool.query(
+                        `INSERT INTO users (discord_id, discord_username, character_name, role, is_active, created_at)
+                         VALUES ($1, $2, $3, 'user', false, NOW())
+                         RETURNING id`,
+                        [signup.discord_id, signup.username, null]
+                    );
+
+                    memberId = newUserResult.rows[0].id;
+                    console.log(`[Raid-Helper] Created new user ${memberId} for discord_id ${signup.discord_id} (${signup.username})`);
                 }
 
                 await pool.query(`
