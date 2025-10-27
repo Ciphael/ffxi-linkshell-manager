@@ -319,7 +319,13 @@ app.post('/api/auth/link-character', async (req, res) => {
 // Get current logged-in user (session check)
 app.get('/api/auth/session', async (req, res) => {
     try {
-        console.log('[Session Check] Checking session for userId:', req.session.userId);
+        console.log('[Session Check] Full debug:', {
+            sessionID: req.sessionID,
+            userId: req.session.userId,
+            cookieHeader: req.headers.cookie,
+            hasCookie: !!req.headers.cookie,
+            origin: req.headers.origin
+        });
 
         if (!req.session.userId) {
             console.log('[Session Check] No userId in session, returning null');
@@ -344,6 +350,18 @@ app.get('/api/auth/session', async (req, res) => {
         console.error('[Session Check] Error:', error);
         res.status(500).json({ error: 'Failed to get user' });
     }
+});
+
+// Debug endpoint for troubleshooting cookie issues
+app.get('/api/auth/debug', (req, res) => {
+    res.json({
+        sessionID: req.sessionID,
+        sessionData: req.session,
+        cookies: req.headers.cookie,
+        hasCookie: !!req.headers.cookie,
+        origin: req.headers.origin,
+        userAgent: req.headers['user-agent']
+    });
 });
 
 // Logout
