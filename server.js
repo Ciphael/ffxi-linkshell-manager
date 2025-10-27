@@ -153,19 +153,35 @@ app.get('/api/auth/discord/callback', async (req, res) => {
             req.session.discordId = discordUser.id;
             req.session.isActive = user.is_active;
 
-            // Redirect to frontend
-            if (user.is_active) {
-                return res.redirect(`${FRONTEND_URL}?login=success`);
-            } else {
-                return res.redirect(`${FRONTEND_URL}?status=pending_approval`);
-            }
+            // Save session before redirecting (critical for cross-origin cookies)
+            req.session.save((err) => {
+                if (err) {
+                    console.error('Session save error:', err);
+                    return res.redirect(`${FRONTEND_URL}?error=session_failed`);
+                }
+
+                // Redirect to frontend after session is saved
+                if (user.is_active) {
+                    return res.redirect(`${FRONTEND_URL}?login=success`);
+                } else {
+                    return res.redirect(`${FRONTEND_URL}?status=pending_approval`);
+                }
+            });
         } else {
             // New user - needs to link character
             // Store Discord info in session temporarily
             req.session.pendingDiscordId = discordUser.id;
             req.session.pendingDiscordUsername = discordUser.username;
 
-            return res.redirect(`${FRONTEND_URL}?status=new_user&discord_username=${encodeURIComponent(discordUser.username)}`);
+            // Save session before redirecting
+            req.session.save((err) => {
+                if (err) {
+                    console.error('Session save error:', err);
+                    return res.redirect(`${FRONTEND_URL}?error=session_failed`);
+                }
+
+                return res.redirect(`${FRONTEND_URL}?status=new_user&discord_username=${encodeURIComponent(discordUser.username)}`);
+            });
         }
 
     } catch (error) {
@@ -223,14 +239,23 @@ app.post('/api/auth/link-character', async (req, res) => {
         delete req.session.pendingDiscordId;
         delete req.session.pendingDiscordUsername;
 
-        res.json({
-            success: true,
-            user: {
-                id: newUser.id,
-                character_name: newUser.character_name,
-                discord_username: newUser.discord_username,
-                is_active: newUser.is_active
+        // Save session before responding
+        req.session.save((err) => {
+            if (err) {
+                console.error('Session save error during character link:', err);
+                return res.status(500).json({ error: 'Failed to save session' });
             }
+
+            res.json({
+                success: true,
+                user: {
+                    id: newUser.id,
+                    character_name: newUser.character_name,
+                    discord_username: newUser.discord_username,
+                    is_active: newUser.is_active,
+                    role: newUser.role
+                }
+            });
         });
 
     } catch (error) {
