@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const session = require('express-session');
+const pgSession = require('connect-pg-simple')(session);
 const cookieParser = require('cookie-parser');
 const axios = require('axios');
 const { Pool } = require('pg');
@@ -33,8 +34,21 @@ app.use(helmet({
 app.use(express.json());
 app.use(cookieParser());
 
-// Session configuration
+// Database connection (must be before session config)
+const pool = new Pool({
+    connectionString: process.env.DATABASE_URL,
+    ssl: {
+        rejectUnauthorized: false
+    }
+});
+
+// Session configuration with PostgreSQL store
 app.use(session({
+    store: new pgSession({
+        pool: pool, // Use existing connection pool
+        tableName: 'user_sessions', // Table for storing sessions
+        createTableIfMissing: true // Auto-create sessions table
+    }),
     secret: process.env.SESSION_SECRET || 'ffxi-linkshell-secret-key-change-in-production',
     resave: false,
     saveUninitialized: false,
@@ -56,14 +70,6 @@ app.use((req, res, next) => {
         hasCookie: !!req.headers.cookie
     });
     next();
-});
-
-// Database connection
-const pool = new Pool({
-    connectionString: process.env.DATABASE_URL,
-    ssl: {
-        rejectUnauthorized: false
-    }
 });
 
 // Test database connection
