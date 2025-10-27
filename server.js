@@ -3830,68 +3830,14 @@ async function handleEventCreateOrUpdate(event_id, eventData) {
                 );
 
                 if (memberResult.rows.length > 0) {
-                    // User exists - use their ID
+                    // User exists - use their ID (with their existing character_name)
                     memberId = memberResult.rows[0].id;
+                    console.log(`[Raid-Helper] Found existing user ${memberId} for discord_id ${signup.discord_id}`);
                 } else {
-                    // User doesn't exist - AUTO-CREATE them
-                    // Discord users are auto-approved (is_active = true) since Discord membership is verified
-
-                    // Generate unique character name by checking for conflicts
-                    let characterName = signup.username;
-                    let attempt = 0;
-                    let userCreated = false;
-
-                    while (!userCreated && attempt < 10) {
-                        try {
-                            const newUserResult = await pool.query(`
-                                INSERT INTO users (
-                                    discord_id,
-                                    discord_username,
-                                    character_name,
-                                    is_active
-                                ) VALUES ($1, $2, $3, $4)
-                                RETURNING id
-                            `, [
-                                signup.discord_id,
-                                signup.username,
-                                characterName,
-                                true // Auto-approve Discord users
-                            ]);
-
-                            memberId = newUserResult.rows[0].id;
-                            console.log(`[Raid-Helper] Auto-created user ${memberId} for Discord user ${signup.username} (${signup.discord_id}) with character name "${characterName}"`);
-                            userCreated = true;
-
-                        } catch (createError) {
-                            // Check if it's a duplicate character_name error
-                            if (createError.code === '23505' && createError.constraint === 'users_character_name_key') {
-                                // Character name is taken, try with a suffix
-                                attempt++;
-                                characterName = `${signup.username}_${attempt}`;
-                                console.warn(`[Raid-Helper] Character name conflict, retrying with: ${characterName}`);
-                            } else if (createError.code === '23505') {
-                                // Duplicate discord_id - user was just created, fetch it
-                                console.warn(`[Raid-Helper] Discord ID already exists, fetching user`);
-                                const retryResult = await pool.query(
-                                    'SELECT id FROM users WHERE discord_id = $1',
-                                    [signup.discord_id]
-                                );
-                                if (retryResult.rows.length > 0) {
-                                    memberId = retryResult.rows[0].id;
-                                    userCreated = true;
-                                }
-                                break;
-                            } else {
-                                // Unknown error - log it but don't fail the entire transaction
-                                console.error(`[Raid-Helper] Failed to create user for ${signup.discord_id}:`, createError.message);
-                                break;
-                            }
-                        }
-                    }
-
-                    if (!userCreated && !memberId) {
-                        console.warn(`[Raid-Helper] Could not create user for ${signup.discord_id} (${signup.username}), signing up without member_id`);
-                    }
+                    // User doesn't exist yet - they need to link their account via OAuth or admin
+                    // Create signup without member_id for now
+                    memberId = null;
+                    console.log(`[Raid-Helper] No user found for discord_id ${signup.discord_id} (${signup.username}), creating signup without member_id (will link later)`);
                 }
 
                 await pool.query(`
