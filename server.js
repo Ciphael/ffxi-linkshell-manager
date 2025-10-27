@@ -72,11 +72,11 @@ pool.connect((err, client, release) => {
 const DISCORD_CLIENT_ID = process.env.DISCORD_CLIENT_ID;
 const DISCORD_CLIENT_SECRET = process.env.DISCORD_CLIENT_SECRET;
 const DISCORD_GUILD_ID = process.env.DISCORD_GUILD_ID;
-const DISCORD_REDIRECT_URI = process.env.DISCORD_REDIRECT_URI || 'https://ffxi-linkshell-manager-production.up.railway.app/auth/discord/callback';
+const DISCORD_REDIRECT_URI = process.env.DISCORD_REDIRECT_URI || 'https://ffxi-linkshell-manager-production.up.railway.app/api/auth/discord/callback';
 const FRONTEND_URL = process.env.FRONTEND_URL || 'https://ffxi-linkshell-manager-frontend.vercel.app';
 
 // Step 1: Initiate Discord OAuth
-app.get('/auth/discord', (req, res) => {
+app.get('/api/auth/discord', (req, res) => {
     const params = new URLSearchParams({
         client_id: DISCORD_CLIENT_ID,
         redirect_uri: DISCORD_REDIRECT_URI,
@@ -88,7 +88,7 @@ app.get('/auth/discord', (req, res) => {
 });
 
 // Step 2: Handle OAuth Callback
-app.get('/auth/discord/callback', async (req, res) => {
+app.get('/api/auth/discord/callback', async (req, res) => {
     const { code } = req.query;
 
     if (!code) {
@@ -175,7 +175,7 @@ app.get('/auth/discord/callback', async (req, res) => {
 });
 
 // Step 3: Link Discord account to FFXI character
-app.post('/auth/link-character', async (req, res) => {
+app.post('/api/auth/link-character', async (req, res) => {
     try {
         const { character_name } = req.body;
         const { pendingDiscordId, pendingDiscordUsername } = req.session;
@@ -239,8 +239,8 @@ app.post('/auth/link-character', async (req, res) => {
     }
 });
 
-// Get current logged-in user
-app.get('/auth/user', async (req, res) => {
+// Get current logged-in user (session check)
+app.get('/api/auth/session', async (req, res) => {
     try {
         if (!req.session.userId) {
             return res.json({ user: null });
@@ -265,7 +265,7 @@ app.get('/auth/user', async (req, res) => {
 });
 
 // Logout
-app.post('/auth/logout', (req, res) => {
+app.post('/api/auth/logout', (req, res) => {
     req.session.destroy((err) => {
         if (err) {
             return res.status(500).json({ error: 'Logout failed' });
