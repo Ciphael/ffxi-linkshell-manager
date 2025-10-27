@@ -11,21 +11,53 @@ require('dotenv').config();
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// CORS Configuration
+// Trust proxy - Railway is behind a proxy
+app.set('trust proxy', 1);
+
+// CORS Configuration - must explicitly allow credentials for cross-origin cookies
 app.use(cors({
-    origin: [
-        'https://ffxi-linkshell-manager-frontend.vercel.app',
-        'http://localhost:3000',
-        'http://localhost:5173',
-        'http://127.0.0.1:5500',
-    ],
-    credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization']
+    origin: function (origin, callback) {
+        const allowedOrigins = [
+            'https://ffxi-linkshell-manager-frontend.vercel.app',
+            'http://localhost:3000',
+            'http://localhost:5173',
+            'http://127.0.0.1:5500',
+        ];
+
+        // Allow requests with no origin (like mobile apps or Postman)
+        if (!origin) return callback(null, true);
+
+        if (allowedOrigins.indexOf(origin) !== -1) {
+            callback(null, true);
+        } else {
+            callback(new Error('Not allowed by CORS'));
+        }
+    },
+    credentials: true, // CRITICAL: Allow cookies to be sent cross-origin
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'Cookie'],
+    exposedHeaders: ['Set-Cookie']
 }));
 
 // Handle preflight requests
 app.options('*', cors());
+
+// Explicit credentials middleware for all responses
+app.use((req, res, next) => {
+    const origin = req.headers.origin;
+    const allowedOrigins = [
+        'https://ffxi-linkshell-manager-frontend.vercel.app',
+        'http://localhost:3000',
+        'http://localhost:5173',
+        'http://127.0.0.1:5500',
+    ];
+
+    if (allowedOrigins.includes(origin)) {
+        res.header('Access-Control-Allow-Credentials', 'true');
+        res.header('Access-Control-Allow-Origin', origin);
+    }
+    next();
+});
 
 // Middleware
 app.use(helmet({
@@ -44,6 +76,7 @@ const pool = new Pool({
 
 // Session configuration with PostgreSQL store
 app.use(session({
+    name: 'ffxi.sid', // Fixed cookie name
     store: new pgSession({
         pool: pool, // Use existing connection pool
         tableName: 'user_sessions', // Table for storing sessions
@@ -57,6 +90,7 @@ app.use(session({
         httpOnly: true,
         maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
         sameSite: 'none', // Required for cross-origin (Vercel -> Railway)
+        path: '/', // Explicitly set path
         domain: undefined // Don't set domain for cross-origin
     }
 }));
