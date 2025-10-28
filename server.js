@@ -1497,18 +1497,34 @@ app.get('/api/events/:eventId/zone-mobs', async (req, res) => {
             [eventId]
         );
 
-        const eventType = eventResult.rows[0]?.event_type;
+        const eventType = eventResult.rows[0]?.event_type || 'SKY';
 
-        // Get mobs from zones matching this event type
-        const query = `
-            SELECT m.dropId, m.mob_name, z.zone_name, m.mob_type, m.mob_level
-            FROM mobs m
-            JOIN zones z ON m.zone_id = z.id
-            WHERE z.zone_category = UPPER($1)
-            ORDER BY z.zone_name, m.mob_name
-        `;
+        let query;
+        let params;
 
-        const result = await pool.query(query, [eventType || 'SKY']);
+        // If event type is "Other", return ALL mobs
+        // Otherwise, filter by specific zone category
+        if (eventType.toUpperCase() === 'OTHER') {
+            query = `
+                SELECT m.dropId, m.mob_name, z.zone_name, z.zone_category, m.mob_type, m.mob_level
+                FROM mobs m
+                JOIN zones z ON m.zone_id = z.id
+                ORDER BY z.zone_name, m.mob_name
+            `;
+            params = [];
+        } else {
+            // Filter by specific zone category (SKY, LIMBUS, DYNAMIS, SEA, HENM)
+            query = `
+                SELECT m.dropId, m.mob_name, z.zone_name, z.zone_category, m.mob_type, m.mob_level
+                FROM mobs m
+                JOIN zones z ON m.zone_id = z.id
+                WHERE z.zone_category = UPPER($1)
+                ORDER BY z.zone_name, m.mob_name
+            `;
+            params = [eventType];
+        }
+
+        const result = await pool.query(query, params);
         res.json(result.rows);
     } catch (error) {
         console.error('Error fetching zone mobs:', error);
@@ -3809,6 +3825,7 @@ async function handleEventCreateOrUpdate(event_id, eventData) {
         const {
             title,
             description = '',
+            event_type = 'Sky', // Default to Sky if not provided by n8n
             start_time,
             end_time,
             channel_id,
@@ -3838,13 +3855,14 @@ async function handleEventCreateOrUpdate(event_id, eventData) {
                 UPDATE events
                 SET event_name = $1,
                     description = $2,
-                    event_date = $3,
-                    duration_minutes = $4,
-                    discord_channel_id = $5,
-                    discord_message_id = $6
-                WHERE raid_helper_id = $7
+                    event_type = $3,
+                    event_date = $4,
+                    duration_minutes = $5,
+                    discord_channel_id = $6,
+                    discord_message_id = $7
+                WHERE raid_helper_id = $8
                 RETURNING id
-            `, [title, description, start_time, durationMinutes, channel_id, message_id, event_id]);
+            `, [title, description, event_type, start_time, durationMinutes, channel_id, message_id, event_id]);
 
             if (result.rows.length === 0) {
                 throw new Error(`Failed to update event with raid_helper_id ${event_id}`);
@@ -3858,7 +3876,7 @@ async function handleEventCreateOrUpdate(event_id, eventData) {
             // Note: created_by and raid_leader are intentionally NULL for Discord events
             // since they're not created by a logged-in user
             console.log(`[Raid-Helper] Creating new event with raid_helper_id: ${event_id}`);
-            console.log(`[Raid-Helper] Event data: title="${title}", type="Sky", date="${start_time}", duration=${durationMinutes}`);
+            console.log(`[Raid-Helper] Event data: title="${title}", type="${event_type}", date="${start_time}", duration=${durationMinutes}`);
 
             try {
                 const result = await pool.query(`
@@ -3879,12 +3897,12 @@ async function handleEventCreateOrUpdate(event_id, eventData) {
                     RETURNING id
                 `, [
                     title,
-                    'Sky',  // Default event type
+                    event_type,  // Use event_type from n8n payload
                     start_time,
                     durationMinutes,
                     description,
                     'Discord',  // Meeting location
-                    18,  // Default max participants
+                    64,  // Max participants (updated from 18 to 64)
                     10,  // Default base points
                     event_id,
                     channel_id,

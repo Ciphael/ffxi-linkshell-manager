@@ -6,6 +6,8 @@ node_modules/
 .railway/
 
 # Session continuity docs (contain credentials)
+SESSION_START.md
+INTEGRATION_KNOWLEDGE_BASE.md
 N8N_SESSION_CONTINUITY.md
 RAILWAY_CLI_CONNECTION.md
 DISCORD_BOT_SETUP_SESSION.md
