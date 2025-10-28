@@ -1679,7 +1679,7 @@ app.get('/api/events/upcoming', async (req, res) => {
         const result = await pool.query(
             `SELECT e.*,
                     u.character_name as raid_leader_name,
-                    (COUNT(DISTINCT ep.user_id) + COUNT(DISTINCT es.discord_id)) as registered_count,
+                    (COUNT(DISTINCT ep.user_id) + COUNT(DISTINCT CASE WHEN es.status = 'accepted' THEN es.discord_id END)) as accepted_count,
                     array_agg(DISTINCT et.mob_name) FILTER (WHERE et.mob_name IS NOT NULL) as targets
              FROM events e
              LEFT JOIN users u ON e.raid_leader = u.id
